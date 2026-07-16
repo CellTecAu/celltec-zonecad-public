@@ -1375,7 +1375,7 @@ if (titleEl) {
 // stale files while online, it only enables install + offline fallback.
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/zonecad-dev/sw.js').catch(() => { /* e.g. file:// or unsupported */ });
+  navigator.serviceWorker.register('/celltec-zonecad-public/sw.js').catch(() => { /* e.g. file:// or unsupported */ });
 }
 
 {

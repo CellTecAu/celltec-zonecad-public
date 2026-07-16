@@ -8,15 +8,15 @@
 // Bump CACHE on breaking changes to force old caches out (also purged on
 // every activate of a new SW version).
 
-const CACHE = 'zonecad-dev-v41';
+const CACHE = 'celltec-zonecad-public-v41';
 
 self.addEventListener('install', e => {
   // Pre-cache the shell so offline works even if the first session never
   // revisits these URLs. Everything else is cached as it's fetched.
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll([
-      '/zonecad-dev/',
-      '/zonecad-dev/manifest.webmanifest',
+      '/celltec-zonecad-public/',
+      '/celltec-zonecad-public/manifest.webmanifest',
     ]).catch(() => { /* best-effort — runtime caching covers the rest */ }))
       .then(() => self.skipWaiting())
   );
@@ -34,7 +34,7 @@ self.addEventListener('fetch', e => {
   const { request } = e;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
-  if (url.origin !== location.origin || !url.pathname.startsWith('/zonecad-dev/')) return;
+  if (url.origin !== location.origin || !url.pathname.startsWith('/celltec-zonecad-public/')) return;
 
   // cache: 'no-cache' = revalidate with the server (ETag/Last-Modified → 304 when
   // unchanged). Without it, fetch() reads the browser's HTTP cache, and the
@@ -56,7 +56,7 @@ self.addEventListener('fetch', e => {
       .catch(() =>
         caches.match(request).then(hit =>
           // Offline navigation to any in-scope URL falls back to the app shell.
-          hit ?? (request.mode === 'navigate' ? caches.match('/zonecad-dev/') : undefined)
+          hit ?? (request.mode === 'navigate' ? caches.match('/celltec-zonecad-public/') : undefined)
         )
       )
   );
