@@ -1,0 +1,374 @@
+{
+  "schema": "zonecad/1",
+  "units": "mm",
+  "layout": {
+    "id": "layout",
+    "widthM": 7,
+    "heightM": 4,
+    "title": "Hinged Door"
+  },
+  "background": null,
+  "objects": [
+    {
+      "id": "p702",
+      "type": "post",
+      "x": 1236.6677859519505,
+      "y": 1586.067950792149,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "p703",
+      "type": "post",
+      "x": 5736.6677859519505,
+      "y": 1586.067950792149,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "p767",
+      "type": "post",
+      "x": 3936.6677859519505,
+      "y": 1586.067950792149,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "s769",
+      "type": "span",
+      "spanKind": "panel",
+      "postA": "p767",
+      "postB": "p703",
+      "faceA": null,
+      "faceB": "nx",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {}
+    },
+    {
+      "id": "p770",
+      "type": "post",
+      "x": 3036.6677859519505,
+      "y": 1586.067950792149,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "s772",
+      "type": "span",
+      "spanKind": "panel",
+      "postA": "p702",
+      "postB": "p770",
+      "faceA": "px",
+      "faceB": "nx",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {}
+    },
+    {
+      "id": "s773",
+      "type": "span",
+      "spanKind": "hingedDoor",
+      "postA": "p767",
+      "postB": "p770",
+      "faceA": "nx",
+      "faceB": "px",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {
+        "openAngleDeg": 45
+      }
+    },
+    {
+      "id": "p904",
+      "type": "post",
+      "x": 1236.6677859519505,
+      "y": 2586.067950792149,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "p905",
+      "type": "post",
+      "x": 5736.6677859519505,
+      "y": 2586.067950792149,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "p906",
+      "type": "post",
+      "x": 3936.6677859519505,
+      "y": 2586.067950792149,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "p907",
+      "type": "post",
+      "x": 3036.6677859519505,
+      "y": 2586.067950792149,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "s908",
+      "type": "span",
+      "spanKind": "panel",
+      "postA": "p906",
+      "postB": "p905",
+      "faceA": null,
+      "faceB": "nx",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {}
+    },
+    {
+      "id": "s909",
+      "type": "span",
+      "spanKind": "panel",
+      "postA": "p904",
+      "postB": "p907",
+      "faceA": "px",
+      "faceB": "nx",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {}
+    },
+    {
+      "id": "s910",
+      "type": "span",
+      "spanKind": "hingedDoor",
+      "postA": "p906",
+      "postB": "p907",
+      "faceA": "nx",
+      "faceB": "px",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {
+        "openAngleDeg": 45,
+        "hingePos": "Ar"
+      }
+    },
+    {
+      "id": "r941",
+      "type": "refdim",
+      "postA": "p767",
+      "postB": "p703",
+      "offsetMm": -1080
+    },
+    {
+      "id": "l942",
+      "type": "label",
+      "x": 353.9007544607673,
+      "y": 3865.1658180015575,
+      "text": "Hinged Door"
+    }
+  ],
+  "constraints": [
+    {
+      "id": "c757",
+      "kind": "alignH",
+      "child": "p702",
+      "parent": "p703",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c782",
+      "kind": "dimension",
+      "child": "p770",
+      "parent": "p702",
+      "valueMm": 1800,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      },
+      "offsetMm": -1080
+    },
+    {
+      "id": "c785",
+      "kind": "dimension",
+      "child": "p767",
+      "parent": "p770",
+      "valueMm": 900,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      },
+      "offsetMm": -1080
+    },
+    {
+      "id": "c916",
+      "kind": "alignV",
+      "child": "p904",
+      "parent": "p702",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c919",
+      "kind": "alignV",
+      "child": "p907",
+      "parent": "p770",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c922",
+      "kind": "alignV",
+      "child": "p906",
+      "parent": "p767",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c925",
+      "kind": "alignV",
+      "child": "p905",
+      "parent": "p703",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c929",
+      "kind": "alignH",
+      "child": "p905",
+      "parent": "p904",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c930",
+      "kind": "alignH",
+      "child": "p906",
+      "parent": "p904",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c931",
+      "kind": "alignH",
+      "child": "p907",
+      "parent": "p904",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c933",
+      "kind": "alignH",
+      "child": "p767",
+      "parent": "p702",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c934",
+      "kind": "alignH",
+      "child": "p770",
+      "parent": "p702",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c937",
+      "kind": "dimension",
+      "child": "p904",
+      "parent": "p702",
+      "valueMm": 1000,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      },
+      "offsetMm": 740
+    }
+  ],
+  "settings": {
+    "panSensitivity": 1,
+    "zoomSensitivity": 1,
+    "zoomToCursor": true,
+    "snapEnabled": false,
+    "snapMm": 50,
+    "rotSnapDeg": 5,
+    "polarSnapDeg": 0,
+    "displayUnit": "m",
+    "darkMode": true,
+    "showPostLabels": false,
+    "layers": {
+      "zones": true,
+      "background": true,
+      "constraints": true,
+      "mesh": true
+    }
+  },
+  "view": {
+    "panX": 428.3743814703478,
+    "panY": 66.3922953793267,
+    "scale": 0.16437155840000012
+  }
+}

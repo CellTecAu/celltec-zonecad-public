@@ -1,0 +1,1019 @@
+/* ZoneCAD — base styles */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #1a1c22;
+  --surface:   #23262f;
+  --border:    #333742;
+  --text:      #d4d8e0;
+  --text-dim:  #7a8090;
+  --accent:    #f4a100;
+  --accent-dk: #c98600;
+  --danger:    #d46a6a;
+  --btn-h:     28px;
+  --radius:    4px;
+  /* Site header height */
+  --header-h:  52px;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* ── Site header ──────────────────────────────────────────────────────────── */
+
+.site-header {
+  height: var(--header-h);
+  background: rgb(38, 42, 51);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+
+.site-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 100%;
+  padding: 0 16px;
+}
+
+.zonecad-wordmark {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.logo-link { display: flex; align-items: center; text-decoration: none; }
+.site-logo  { height: 30px; width: auto; }
+
+.layout-title {
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+  transition: background 0.1s, color 0.1s;
+}
+.layout-title:hover { color: var(--text); background: rgba(255,255,255,0.07); }
+
+/* ── Menu collapse toggle (phone) ─────────────────────────────────────────── */
+
+#menu-toggle {
+  display: none; /* phones only — see media query below */
+  margin-left: auto;
+  width: 40px;
+  height: 34px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.15s;
+}
+#menu-toggle[aria-expanded="true"] { transform: rotate(180deg); } /* ▾ becomes "collapse" arrow */
+
+/* Phone portrait (narrow) OR phone landscape (short) — either way the wrapped
+   toolbar eats too much screen, so the collapse toggle appears.
+   NOTE: layout overrides for the toolbar/toolbox live in the small-screen
+   block at the END of this file — they must follow the base rules to win. */
+@media (max-width: 760px), (max-height: 500px) {
+  #menu-toggle { display: inline-flex; align-items: center; justify-content: center; }
+  /* Thicker divider under the logo row anchors the toggle visually */
+  .site-header { border-bottom: 3px solid var(--accent); }
+  body.menu-collapsed #toolbar { display: none; }
+}
+
+.layout-title-input {
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1px 6px;
+  outline: none;
+  min-width: 140px;
+}
+
+.site-nav {
+  display: flex;
+  gap: 18px;
+}
+.site-nav a {
+  color: rgba(255,255,255,0.7);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+.site-nav a:hover,
+.site-nav a.active { color: #fff; }
+
+
+/* ── App shell ────────────────────────────────────────────────────────────── */
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--header-h));
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────────────────── */
+
+#toolbar {
+  display: flex;
+  flex-wrap: wrap; /* narrow screens: overflow to extra rows instead of clipping */
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  min-height: 38px; /* grows when wrapped; canvas (flex: 1) absorbs the difference */
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+#toolbar button {
+  height: var(--btn-h);
+  padding: 0 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+  transition: background 0.1s, border-color 0.1s;
+}
+#toolbar button:hover  { background: rgba(255,255,255,0.07); border-color: var(--accent); }
+#toolbar button:active { background: rgba(255,255,255,0.12); }
+#toolbar button:disabled { opacity: 0.35; cursor: default; border-color: var(--border); }
+
+/* Icon-only toolbar buttons (Undo/Redo) — no label, wider glyph. */
+#toolbar button.tb-icon { display: inline-flex; align-items: center; justify-content: center; padding: 0 11px; }
+#toolbar button.tb-icon svg { width: 21px; height: 18px; }
+
+.toolbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* ── Toolbar dropdowns (Background · Export · Help) ───────────────────────── */
+.tb-dropdown { position: relative; display: inline-flex; }
+.tb-dropdown.open > .tb-drop-trigger {
+  background: rgba(255,255,255,0.12);
+  border-color: var(--accent);
+}
+.tb-drop-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 1500;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 190px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+.tb-drop-menu[hidden] { display: none; }
+/* Menu items: full-width, left-aligned (override the pill toolbar-button look). */
+#toolbar .tb-drop-menu button {
+  height: auto;
+  width: 100%;
+  padding: 7px 10px;
+  text-align: left;
+  border-color: transparent;
+  border-radius: calc(var(--radius) - 1px);
+}
+#toolbar .tb-drop-menu button:hover:not(:disabled) {
+  background: rgba(255,255,255,0.08);
+  border-color: transparent;
+}
+.tb-drop-slider {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+.tb-drop-slider label {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.tb-drop-slider input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; }
+
+/* ── View toggle buttons: layers (eyeball) + display (units, theme) ───────── */
+.tb-toggle-group { display: inline-flex; align-items: center; gap: 3px; }
+#toolbar .tb-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 30px;
+  padding: 0 8px;
+}
+#toolbar .tb-toggle .eye { width: 15px; height: 15px; flex-shrink: 0; }
+/* "On" (visible): accent tint + open eye. */
+#toolbar .tb-toggle[aria-pressed="true"] {
+  background: rgba(244,161,0,0.14);
+  border-color: rgba(244,161,0,0.55);
+  color: var(--accent);
+}
+/* "Off" (hidden): muted + slashed eye. */
+#toolbar .tb-toggle.off { opacity: 0.55; color: var(--text-dim); }
+.tb-toggle .eye-slash, .tb-vis-item .eye-slash { display: none; }
+.tb-toggle.off .eye-iris, .tb-vis-item.off .eye-iris { display: none; }
+.tb-toggle.off .eye-slash, .tb-vis-item.off .eye-slash { display: block; }
+#tgl-dark .theme-glyph { font-size: 14px; line-height: 1; }
+
+/* Visibility dropdown rows: eyeball tick + label; stay open while toggling. */
+#toolbar .tb-vis-item { display: flex; align-items: center; gap: 9px; }
+.tb-vis-item .eye { width: 15px; height: 15px; flex-shrink: 0; color: var(--accent); }
+#toolbar .tb-vis-item.off { color: var(--text-dim); }
+.tb-vis-item.off .eye { color: var(--text-dim); opacity: 0.7; }
+.tb-vis-sep { height: 1px; background: var(--border); margin: 3px 8px; }
+
+#toolbar-title {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ── Canvas wrap + toolbox ────────────────────────────────────────────────── */
+
+#canvas-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+#canvas {
+  flex: 1;
+  display: block;
+  cursor: default;
+  touch-action: none;
+  min-width: 0;
+}
+
+/* ── Toolbox ──────────────────────────────────────────────────────────────── */
+
+#toolbox {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 5px;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;   /* short viewports: overflow into extra columns, not off-screen */
+  max-height: calc(100% - 20px);
+  align-items: center;
+  align-content: flex-start;
+  gap: 2px;
+  box-shadow: 0 2px 14px rgba(0,0,0,0.45);
+  user-select: none;
+}
+
+.toolbox-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 1px 0;
+  line-height: 1.1;
+}
+
+.toolbox-sep {
+  width: 62px;
+  height: 1px;
+  background: var(--border);
+  margin: 3px 0;
+}
+
+/* Buttons within a group flow left-to-right and wrap to a second column
+   once the group exceeds two buttons — keeps the toolbox from getting tall. */
+.tool-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  width: 70px;
+}
+
+.tool-btn {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.tool-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+.tool-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); border-color: var(--border); }
+.tool-btn:active { background: rgba(255,255,255,0.14); }
+.tool-btn.active { background: rgba(244,161,0,0.14); color: var(--accent); border-color: rgba(244,161,0,0.55); }
+.tool-btn:disabled { opacity: 0.3; cursor: default; }
+.tool-btn:disabled:hover { background: transparent; border-color: transparent; }
+
+.tool-key {
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-size: 7px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--text-dim);
+  opacity: 0.7;
+  pointer-events: none;
+  line-height: 1;
+}
+
+@keyframes toolFlash {
+  0%   { background: rgba(244,161,0,0.30); }
+  100% { background: transparent; }
+}
+.tool-flash { animation: toolFlash 0.3s ease-out; }
+
+/* ── Dialogs (modal) ──────────────────────────────────────────────────────── */
+
+dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 0;
+  min-width: 320px;
+  max-width: 480px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+
+dialog::backdrop {
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(2px);
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dialog-header h2 { font-size: 15px; font-weight: 600; }
+
+.dialog-body {
+  padding: 16px 18px;
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+}
+
+/* Form elements inside dialogs */
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+}
+
+.form-row label {
+  flex: 1;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.form-row input[type="number"],
+.form-row input[type="range"],
+.form-row select {
+  flex: 0 0 120px;
+  height: 26px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.form-row input[type="range"] {
+  padding: 0;
+  cursor: pointer;
+}
+
+.form-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px 10px;
+  margin-bottom: 12px;
+}
+
+legend {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 4px;
+}
+
+/* Dialog buttons */
+
+.btn {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: background 0.1s;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent-dk);
+  color: #fff;
+  font-weight: 600;
+}
+.btn-primary:hover  { background: var(--accent-dk); }
+.btn-secondary { background: transparent; color: var(--text); }
+.btn-secondary:hover { background: rgba(255,255,255,0.07); }
+.btn-sm { height: 24px; padding: 0 8px; font-size: 11px; }
+
+/* Trace tool commit bar — floats top-centre over the canvas */
+#trace-bar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+#trace-bar .btn { touch-action: manipulation; }
+.trace-hint { font-size: 12px; color: var(--text-dim); }
+@media (pointer: coarse) { #trace-bar .btn { height: 40px; padding: 0 16px; } }
+
+.btn-group {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* ── Status bar ───────────────────────────────────────────────────────────── */
+
+#statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  height: 22px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+#status-selection { color: var(--accent); }
+#status-broken { color: #e5484d; font-weight: 600; }
+#status-broken.has-broken { cursor: help; }
+
+/* ── Context menu ─────────────────────────────────────────────────────────── */
+
+#ctx-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  min-width: 160px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.ctx-item {
+  padding: 6px 14px;
+  cursor: pointer;
+  color: var(--text);
+  user-select: none;
+}
+.ctx-item:hover { background: rgba(255,255,255,0.08); }
+.ctx-danger { color: #e06060; }
+.ctx-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* ── Recent layouts dropdown ──────────────────────────────────────────────── */
+
+.recent-menu {
+  position: fixed;
+  z-index: 1500;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  min-width: 220px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.recent-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 14px;
+  cursor: pointer;
+  color: var(--text);
+  user-select: none;
+}
+.recent-item:hover { background: rgba(255,255,255,0.08); }
+.recent-name { font-weight: 500; }
+.recent-when { color: var(--text-dim); font-size: 11px; white-space: nowrap; }
+.recent-empty { color: var(--text-dim); cursor: default; }
+.recent-empty:hover { background: none; }
+
+/* ── Inline canvas entry (math-aware) ─────────────────────────────────────── */
+
+.inline-input-wrap {
+  position: fixed;
+  z-index: 1600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  border: 1px solid var(--accent, #f0a000);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  padding: 3px 6px;
+}
+.inline-input-wrap.inline-input--error { border-color: #e06060; }
+.inline-input {
+  width: 90px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+}
+.inline-input-hint {
+  color: var(--text-dim);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.inline-input--error .inline-input-hint { color: #e06060; }
+
+/* ✓ / ✕ commit buttons — only created on coarse-pointer devices, where the
+   on-screen keyboard may have no Enter/Escape */
+.inline-input-btn {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 17px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.inline-input-btn--ok {
+  background: rgba(244,161,0,0.18);
+  border-color: var(--accent, #f0a000);
+  color: var(--accent, #f0a000);
+}
+
+@media (pointer: coarse) {
+  .inline-input-wrap { padding: 8px 10px; }
+  .inline-input { width: 120px; font-size: 17px; } /* ≥16px stops iOS auto-zoom on focus */
+}
+
+/* ── Help / shortcuts dialog ──────────────────────────────────────────────── */
+
+#modal-help { min-width: 460px; }
+.help-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  align-items: center;
+  font-size: 13px;
+}
+.help-grid h3 {
+  grid-column: 1 / -1;
+  margin: 12px 0 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+.help-grid h3:first-child { margin-top: 0; }
+.help-grid kbd {
+  justify-self: start;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.help-grid span { color: var(--text); }
+
+/* ── Features / documentation dialog ──────────────────────────────────────── */
+
+#modal-features { min-width: 560px; max-width: 680px; }
+#modal-features .dialog-body { max-height: 68vh; overflow-y: auto; }
+
+/* ── Welcome dialog ── */
+#modal-welcome { width: min(560px, 92vw); }
+.welcome-doc { font-size: 13px; line-height: 1.55; color: var(--text); }
+.welcome-doc p { margin: 0 0 10px; }
+.welcome-doc h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent, #f0a000);
+  border-bottom: 1px solid var(--border);
+  margin: 14px 0 8px;
+  padding-bottom: 3px;
+}
+.welcome-changelog { margin: 0 0 12px; padding-left: 18px; }
+.welcome-changelog li { margin-bottom: 5px; }
+.welcome-bugs {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 14px !important;
+}
+.welcome-bugs a { color: var(--accent, #f0a000); }
+.welcome-footer { justify-content: space-between; align-items: center; }
+.welcome-skip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+.features-doc { font-size: 13px; line-height: 1.5; color: var(--text); }
+.features-intro { color: var(--text-dim); margin: 0 0 8px; }
+.features-doc h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent, #f0a000);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  margin: 18px 0 8px;
+}
+.features-doc h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 12px 0 4px;
+}
+.features-doc p { margin: 6px 0; }
+.features-doc dl { margin: 6px 0; }
+.features-doc dt { font-weight: 600; margin-top: 8px; }
+.features-doc dd { margin: 2px 0 0 0; color: var(--text-dim); }
+.features-doc ul { margin: 6px 0; padding-left: 18px; }
+.features-doc li { margin: 3px 0; color: var(--text-dim); }
+.features-doc code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  background: rgba(255,255,255,0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.features-doc strong { color: var(--text); }
+
+/* ── Toasts ───────────────────────────────────────────────────────────────── */
+
+#toast-container {
+  position: fixed;
+  left: 50%;
+  bottom: 46px;
+  transform: translateX(-50%);
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.toast {
+  max-width: 480px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #fff;
+  background: #2a3350;
+  border: 1px solid #3a4460;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.toast--show { opacity: 1; transform: translateY(0); }
+.toast--error   { background: #4a2530; border-color: #7a3040; color: #ffd7dc; }
+.toast--success { background: #1f3a2a; border-color: #2f6042; color: #cde6d6; }
+.toast--info    { background: #24304a; border-color: #3a4a68; color: #d6e0f0; }
+
+/* ── BOM dialog ───────────────────────────────────────────────────────────── */
+
+/* Worksheet-style parts list — wider than a normal dialog so the columns breathe. */
+#modal-bom { min-width: 720px; max-width: min(1080px, 94vw); }
+@media (max-width: 760px) { #modal-bom { min-width: 0; width: 96vw; } }
+
+.bom-section { margin-bottom: 16px; }
+.bom-section h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.bom-count {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 11px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.bom-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.bom-table th {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  font-weight: 500;
+}
+.bom-table th.bom-sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.bom-table th.bom-sortable:hover { color: var(--text); }
+.bom-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.bom-qty { text-align: right; font-weight: 600; color: var(--accent); }
+.bom-empty { color: var(--text-dim); font-size: 12px; font-style: italic; }
+
+/* ── Properties tweaks ────────────────────────────────────────────────────── */
+
+#modal-props { min-width: 380px; }
+
+.form-row .btn-group .btn-sm {
+  background: rgba(255,255,255,0.05);
+  border-color: var(--border);
+  color: var(--text);
+}
+.form-row .btn-group .btn-sm:hover { background: rgba(255,255,255,0.12); border-color: var(--accent); }
+
+.bom-readonly {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--accent);
+  font-family: monospace;
+}
+
+.hinge-pos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.hinge-pos-btn.active {
+  background: var(--accent);
+  border-color: var(--accent-dk);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+#btn-add-zone.active {
+  background: rgba(74,144,217,0.2);
+  border-color: #4a90d9;
+  color: #4a90d9;
+}
+
+/* ── BOM cut list details ─────────────────────────────────────────────────── */
+
+.bom-cutlist {
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.bom-cutlist summary {
+  cursor: pointer;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  padding: 4px 0;
+  user-select: none;
+}
+.bom-cutlist summary:hover { color: var(--text); }
+.bom-cutlist .bom-table { margin-top: 6px; }
+
+/* ── Constraints panel (inside Properties dialog) ─────────────────────────── */
+
+.constraint-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.constraint-desc {
+  flex: 1;
+  color: var(--text);
+}
+
+.constraint-remove {
+  background: transparent;
+  border-color: var(--danger);
+  color: var(--danger);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+.constraint-remove:hover { opacity: 1; background: rgba(212,106,106,0.12); }
+
+.no-constraints {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-style: italic;
+  padding: 2px 0;
+}
+
+.constraint-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+/* ── Add Constraint dialog ────────────────────────────────────────────────── */
+
+.ac-error-msg {
+  color: #e06060;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.ac-parent-select {
+  flex: 1 !important;  /* override the 120px default so post IDs aren't clipped */
+  max-width: 220px;
+}
+
+/* ── Touch / tablet ───────────────────────────────────────────────────────── */
+
+/* No double-tap-to-zoom delay or gesture interference on the UI chrome
+   (the canvas itself is already touch-action: none). */
+button, .tool-btn, .ctx-item, .recent-item {
+  touch-action: manipulation;
+}
+
+html, body {
+  overscroll-behavior: none; /* no pull-to-refresh / rubber-banding over the canvas */
+}
+
+/* Coarse pointers (fingers) get ≥44px targets per platform HIG. */
+@media (pointer: coarse) {
+  .tool-btn { width: 44px; height: 44px; }
+  .tool-btn svg { width: 24px; height: 24px; }
+
+  #toolbar button { min-height: 40px; padding: 8px 14px; }
+
+  .ctx-item    { padding: 12px 18px; font-size: 14px; }
+  .recent-item { padding: 12px 14px; }
+}
+
+/* ── Small screens: toolbar/toolbox layout (phone portrait OR landscape) ──────
+   Kept at the END of the file: these override base rules of equal specificity
+   (#toolbox, .tool-group, …), so they must come later in source order. */
+@media (max-width: 760px), (max-height: 500px) {
+  /* Pack the wrapped top toolbar tightly: narrower buttons fit more per row;
+     separators and the ZONECAD title just waste row space when wrapping. */
+  #toolbar button { padding: 8px 9px; }
+  .toolbar-sep, #toolbar-title { display: none; }
+
+  /* Toolbox: flatten the groups (display: contents) so buttons flow one by one,
+     and lay them out with GRID, not column-wrap flexbox — absolutely-positioned
+     column-wrap flex containers mis-size their width when columns rewrap on
+     rotate (Chromium), leaving buttons painted outside the panel. A grid with
+     a definite height sizes its columns correctly on every relayout.
+     Section labels/seps go — they'd be orphaned breakpoints in a packed grid. */
+  .tool-group { display: contents; }
+  .toolbox-label, .toolbox-sep { display: none; }
+  #toolbox {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(auto-fill, 46px);
+    height: calc(100% - 20px);  /* definite height so auto-fill can count rows */
+    align-content: start;
+    justify-items: center;
+    align-items: center;
+  }
+}
+
+/* ── Installed PWA (standalone, no browser chrome) ────────────────────────────
+   viewport-fit=cover lets the app draw under notches/home indicator; pad the
+   fixed chrome back out with the safe-area insets so nothing is obscured.
+   env() is 0 on devices without cutouts — visually a no-op there. */
+@media (display-mode: standalone) {
+  .site-bar {
+    padding-left:  calc(16px + env(safe-area-inset-left));
+    padding-right: calc(16px + env(safe-area-inset-right));
+  }
+  .site-header { padding-top: env(safe-area-inset-top); height: calc(var(--header-h) + env(safe-area-inset-top)); }
+  #statusbar   { padding-bottom: env(safe-area-inset-bottom); }
+  #toolbox     { left: calc(10px + env(safe-area-inset-left)); }
+}
+
+/* Install hint callouts in the welcome dialog */
+.welcome-install {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: rgba(244,161,0,0.08);
+  border: 1px solid rgba(244,161,0,0.35);
+  border-radius: var(--radius);
+}

@@ -1,0 +1,318 @@
+{
+  "schema": "zonecad/1",
+  "units": "mm",
+  "layout": {
+    "id": "layout",
+    "widthM": 5,
+    "heightM": 4,
+    "title": "Sliding Door"
+  },
+  "background": null,
+  "objects": [
+    {
+      "id": "p976",
+      "type": "post",
+      "x": 1377.1746826390136,
+      "y": 3219.869113395228,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "p977",
+      "type": "post",
+      "x": 1377.1746826390136,
+      "y": 719.8691133952279,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "s978",
+      "type": "span",
+      "spanKind": "panel",
+      "postA": "p976",
+      "postB": "p977",
+      "faceA": "ny",
+      "faceB": "py",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {}
+    },
+    {
+      "id": "p979",
+      "type": "post",
+      "x": 3877.1746826390136,
+      "y": 719.8691133952279,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "p981",
+      "type": "post",
+      "x": 3877.1746826390136,
+      "y": 3219.869113395228,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "s982",
+      "type": "span",
+      "spanKind": "panel",
+      "postA": "p981",
+      "postB": "p979",
+      "faceA": "ny",
+      "faceB": "py",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {}
+    },
+    {
+      "id": "p1002",
+      "type": "post",
+      "x": 2562.1746826390136,
+      "y": 3219.869113395228,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "s1003",
+      "type": "span",
+      "spanKind": "panel",
+      "postA": "p1002",
+      "postB": "p976",
+      "faceA": "nx",
+      "faceB": "px",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {}
+    },
+    {
+      "id": "s1004",
+      "type": "span",
+      "spanKind": "slidingDoor",
+      "postA": "p981",
+      "postB": "p1002",
+      "faceA": "nx",
+      "faceB": "px",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {
+        "slideEnd": "A",
+        "trackSide": "right"
+      }
+    },
+    {
+      "id": "p1010",
+      "type": "post",
+      "x": 2562.1746826390136,
+      "y": 719.8691133952279,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "s1011",
+      "type": "span",
+      "spanKind": "panel",
+      "postA": "p1010",
+      "postB": "p977",
+      "faceA": "nx",
+      "faceB": "px",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {}
+    },
+    {
+      "id": "s1018",
+      "type": "span",
+      "spanKind": "slidingDoor",
+      "postA": "p979",
+      "postB": "p1010",
+      "faceA": "nx",
+      "faceB": "px",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {
+        "slideEnd": "A",
+        "trackSide": "left"
+      }
+    },
+    {
+      "id": "r1021",
+      "type": "refdim",
+      "postA": "p1010",
+      "postB": "p977",
+      "offsetMm": 312
+    },
+    {
+      "id": "l1022",
+      "type": "label",
+      "x": 371.8316073989106,
+      "y": 3858.3053789975743,
+      "text": "Sliding Door"
+    }
+  ],
+  "constraints": [
+    {
+      "id": "c986",
+      "kind": "alignH",
+      "child": "p977",
+      "parent": "p979",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c989",
+      "kind": "alignH",
+      "child": "p976",
+      "parent": "p981",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c992",
+      "kind": "alignV",
+      "child": "p979",
+      "parent": "p981",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c995",
+      "kind": "alignV",
+      "child": "p976",
+      "parent": "p977",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c998",
+      "kind": "dimension",
+      "child": "p977",
+      "parent": "p979",
+      "valueMm": 2500,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      },
+      "offsetMm": 498
+    },
+    {
+      "id": "c1001",
+      "kind": "dimension",
+      "child": "p979",
+      "parent": "p981",
+      "valueMm": 2500,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      },
+      "offsetMm": 343
+    },
+    {
+      "id": "c1006",
+      "kind": "alignH",
+      "child": "p1002",
+      "parent": "p976",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c1009",
+      "kind": "dimension",
+      "child": "p1002",
+      "parent": "p981",
+      "valueMm": 1315,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c1014",
+      "kind": "alignV",
+      "child": "p1010",
+      "parent": "p1002",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c1017",
+      "kind": "alignH",
+      "child": "p1010",
+      "parent": "p977",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    }
+  ],
+  "settings": {
+    "panSensitivity": 1,
+    "zoomSensitivity": 1,
+    "zoomToCursor": true,
+    "snapEnabled": false,
+    "snapMm": 50,
+    "rotSnapDeg": 5,
+    "polarSnapDeg": 0,
+    "displayUnit": "m",
+    "darkMode": true,
+    "showPostLabels": false,
+    "layers": {
+      "zones": true,
+      "background": true,
+      "constraints": true,
+      "mesh": true
+    }
+  },
+  "view": {
+    "panX": 598.4014592294641,
+    "panY": 70.1094343289339,
+    "scale": 0.16437155840000012
+  }
+}

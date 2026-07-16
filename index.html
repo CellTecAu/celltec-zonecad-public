@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ZoneCAD — CellTec</title>
+
+  <!-- PWA: installable, standalone (no URL bar) app scoped to /zonecad-dev/ -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#262a33">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ZoneCAD">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <!-- ?v= busts stale mobile caches — bump when main.css changes -->
+  <link rel="stylesheet" href="css/main.css?v=46">
+</head>
+<body>
+
+<!-- ── Site header ──────────────────────────────────────────────────────────── -->
+<header class="site-header">
+  <div class="site-bar">
+    <a class="logo-link" href="/" id="logo-home-link">
+      <img src="https://celltec.com.au/wp-content/uploads/2017/07/logo.png" alt="CellTec" class="site-logo">
+    </a>
+    <span class="zonecad-wordmark">ZoneCAD</span>
+    <span id="layout-title" class="layout-title" title="Click to rename">Untitled layout</span>
+    <!-- Phone only (CSS): collapses the menu bar to free screen space for the tools + canvas -->
+    <button id="menu-toggle" type="button" aria-expanded="true" aria-controls="toolbar" aria-label="Show/hide menu">▾</button>
+  </div>
+</header>
+
+<div id="app">
+
+  <!-- ── Toolbar ──────────────────────────────────────────────────────────── -->
+  <div id="toolbar">
+    <button id="btn-new"      title="New layout">New</button>
+    <button id="btn-save"     title="Save (Ctrl+S)">Save</button>
+    <button id="btn-load"     title="Load layout file">Load</button>
+    <button id="btn-recent"   title="Open a recent layout">Recent ▾</button>
+    <button id="btn-examples" title="Load a built-in example layout">Examples ▾</button>
+    <span class="toolbar-sep"></span>
+    <button id="btn-undo" class="tb-icon" title="Undo (Ctrl+Z)" aria-label="Undo">
+      <svg viewBox="0 0 20 20" fill="none"><path d="M8 5.5 4.5 8.5 8 11.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 8.5H12a4 4 0 0 1 0 8H7.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button id="btn-redo" class="tb-icon" title="Redo (Ctrl+Y)" aria-label="Redo">
+      <svg viewBox="0 0 20 20" fill="none"><path d="M12 5.5 15.5 8.5 12 11.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 8.5H8a4 4 0 0 0 0 8H12.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <span class="toolbar-sep"></span>
+    <button id="btn-bom"      title="Parts summary">BOM</button>
+    <!-- Export dropdown: PNG / DXF -->
+    <div class="tb-dropdown" id="dd-export">
+      <button type="button" class="tb-drop-trigger" title="Export layout">Export ▾</button>
+      <div class="tb-drop-menu" hidden>
+        <button id="btn-export-png" title="Export layout as PNG image">Export PNG…</button>
+        <button id="btn-export-dxf" title="Export layout as DXF file">Export DXF…</button>
+      </div>
+    </div>
+    <!-- Background dropdown: import / calibrate / remove / opacity -->
+    <div class="tb-dropdown" id="dd-background">
+      <button type="button" class="tb-drop-trigger" title="Background floor plan">Background ▾</button>
+      <div class="tb-drop-menu" hidden>
+        <button id="btn-bg-import"     title="Import background floor plan image">Import image…</button>
+        <button id="btn-bg-calibrate"  title="Calibrate background scale (click two known points)" disabled>Calibrate scale…</button>
+        <button id="btn-bg-remove"     title="Remove background image" disabled>Remove background</button>
+        <div id="bg-opacity-row" class="tb-drop-slider" style="display:none">
+          <label for="bg-opacity">Opacity</label>
+          <input id="bg-opacity" type="range" min="0.05" max="1" step="0.05" value="0.45">
+        </div>
+      </div>
+    </div>
+    <span class="toolbar-sep"></span>
+    <button id="btn-settings" title="Settings">⚙ Settings</button>
+    <span class="toolbar-sep"></span>
+    <!-- Visibility dropdown: one row per layer/overlay, eyeball tick = shown on canvas.
+         Rows toggle without closing the menu. Layer state lives in doc.settings. -->
+    <div class="tb-dropdown" id="dd-visibility">
+      <button type="button" class="tb-drop-trigger" title="Show / hide layers">Visibility ▾</button>
+      <div class="tb-drop-menu" hidden>
+        <button class="tb-vis-item" data-layer="zones" aria-pressed="true">
+          <svg class="eye" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path class="eye-shape" d="M1.5 10C3.6 6.3 6.6 4.5 10 4.5s6.4 1.8 8.5 5.5c-2.1 3.7-5.1 5.5-8.5 5.5S3.6 13.7 1.5 10Z" stroke="currentColor" stroke-width="1.3"/><circle class="eye-iris" cx="10" cy="10" r="2.2" fill="currentColor"/><line class="eye-slash" x1="4" y1="4" x2="16" y2="16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Zones</span>
+        </button>
+        <button class="tb-vis-item" data-layer="background" aria-pressed="true">
+          <svg class="eye" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path class="eye-shape" d="M1.5 10C3.6 6.3 6.6 4.5 10 4.5s6.4 1.8 8.5 5.5c-2.1 3.7-5.1 5.5-8.5 5.5S3.6 13.7 1.5 10Z" stroke="currentColor" stroke-width="1.3"/><circle class="eye-iris" cx="10" cy="10" r="2.2" fill="currentColor"/><line class="eye-slash" x1="4" y1="4" x2="16" y2="16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Background image</span>
+        </button>
+        <button class="tb-vis-item" data-layer="constraints" aria-pressed="true">
+          <svg class="eye" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path class="eye-shape" d="M1.5 10C3.6 6.3 6.6 4.5 10 4.5s6.4 1.8 8.5 5.5c-2.1 3.7-5.1 5.5-8.5 5.5S3.6 13.7 1.5 10Z" stroke="currentColor" stroke-width="1.3"/><circle class="eye-iris" cx="10" cy="10" r="2.2" fill="currentColor"/><line class="eye-slash" x1="4" y1="4" x2="16" y2="16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Constraints</span>
+        </button>
+        <button class="tb-vis-item" data-layer="mesh" aria-pressed="true">
+          <svg class="eye" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path class="eye-shape" d="M1.5 10C3.6 6.3 6.6 4.5 10 4.5s6.4 1.8 8.5 5.5c-2.1 3.7-5.1 5.5-8.5 5.5S3.6 13.7 1.5 10Z" stroke="currentColor" stroke-width="1.3"/><circle class="eye-iris" cx="10" cy="10" r="2.2" fill="currentColor"/><line class="eye-slash" x1="4" y1="4" x2="16" y2="16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Mesh</span>
+        </button>
+        <div class="tb-vis-sep"></div>
+        <button class="tb-vis-item" data-setting="showPostLabels" aria-pressed="false">
+          <svg class="eye" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path class="eye-shape" d="M1.5 10C3.6 6.3 6.6 4.5 10 4.5s6.4 1.8 8.5 5.5c-2.1 3.7-5.1 5.5-8.5 5.5S3.6 13.7 1.5 10Z" stroke="currentColor" stroke-width="1.3"/><circle class="eye-iris" cx="10" cy="10" r="2.2" fill="currentColor"/><line class="eye-slash" x1="4" y1="4" x2="16" y2="16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Post labels</span>
+        </button>
+        <button class="tb-vis-item" data-setting="dimensionPanels" aria-pressed="true" title="Dimension every physical panel (canvas + DXF)">
+          <svg class="eye" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path class="eye-shape" d="M1.5 10C3.6 6.3 6.6 4.5 10 4.5s6.4 1.8 8.5 5.5c-2.1 3.7-5.1 5.5-8.5 5.5S3.6 13.7 1.5 10Z" stroke="currentColor" stroke-width="1.3"/><circle class="eye-iris" cx="10" cy="10" r="2.2" fill="currentColor"/><line class="eye-slash" x1="4" y1="4" x2="16" y2="16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Panel dimensions</span>
+        </button>
+      </div>
+    </div>
+    <span class="toolbar-sep"></span>
+    <div class="tb-toggle-group" id="tg-display" role="group" aria-label="Display">
+      <button class="tb-toggle" id="tgl-dark" title="Canvas theme — dark / light" aria-label="Toggle dark/light canvas"><span class="theme-glyph">☾</span></button>
+    </div>
+    <span class="toolbar-sep"></span>
+    <!-- Shown by main.js only when the browser offers a PWA install prompt -->
+    <button id="btn-install" title="Install ZoneCAD as a full-screen app" hidden>📲 Install</button>
+    <!-- Help dropdown (last): welcome / zone config / shortcuts / features -->
+    <div class="tb-dropdown" id="dd-help">
+      <button type="button" class="tb-drop-trigger" title="Help" aria-label="Help">? ▾</button>
+      <div class="tb-drop-menu" hidden>
+        <button id="btn-welcome"    title="Show the welcome / what's-new message">Welcome / What's New</button>
+        <button id="btn-zoneconfig" title="Zone configuration variables">Zone Configuration…</button>
+        <button id="btn-help"       title="Keyboard shortcuts">Keyboard Shortcuts</button>
+        <button id="btn-features"   title="Features &amp; documentation">Features &amp; Guide</button>
+      </div>
+    </div>
+    <span id="toolbar-title">ZoneCAD</span>
+  </div>
+
+  <!-- ── Canvas area + floating toolbox ──────────────────────────────────── -->
+  <div id="canvas-wrap">
+
+    <!-- Fixed toolbox -->
+    <div id="toolbox">
+      <span class="toolbox-label">Select</span>
+      <div class="tool-group">
+      <button class="tool-btn active" data-tool="select" title="Select (V)">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M4 2.5l10.5 8-4.5 1.5-2 5z" fill="currentColor"/><path d="M4 2.5l10.5 8-4.5 1.5-2 5z" fill="none" stroke="var(--bg)" stroke-width="0.5"/></svg>
+        <kbd class="tool-key">V</kbd>
+      </button>
+      <button class="tool-btn" data-tool="move" title="Move — free drag without object snapping (G)">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M10 2v16M2 10h16M10 2l-2.5 2.5M10 2l2.5 2.5M10 18l-2.5-2.5M10 18l2.5-2.5M2 10l2.5-2.5M2 10l2.5 2.5M18 10l-2.5-2.5M18 10l-2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <kbd class="tool-key">G</kbd>
+      </button>
+      <button class="tool-btn" data-tool="split" title="Split — click a panel to insert a post; keeps going for successive splits (S)">
+        <svg viewBox="0 0 20 20" fill="none">
+          <path d="M4.5 4H7.5V16H4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15.5 4H12.5V16H15.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="10" cy="10" r="1.6" fill="currentColor"/>
+        </svg>
+        <kbd class="tool-key">S</kbd>
+      </button>
+      <button class="tool-btn" data-tool="measure" title="Measure distance (R)">
+        <svg viewBox="0 0 20 20" fill="none"><rect x="2" y="6.5" width="16" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><line x1="5" y1="6.5" x2="5" y2="10" stroke="currentColor" stroke-width="1.5"/><line x1="10" y1="6.5" x2="10" y2="11" stroke="currentColor" stroke-width="1.5"/><line x1="15" y1="6.5" x2="15" y2="10" stroke="currentColor" stroke-width="1.5"/></svg>
+        <kbd class="tool-key">R</kbd>
+      </button>
+
+      </div>
+      <div class="toolbox-sep"></div>
+      <span class="toolbox-label">Add</span>
+      <div class="tool-group">
+
+      <button class="tool-btn" data-tool="add-post" title="Add post — click to place (A)">
+        <svg viewBox="0 0 20 20" fill="none"><rect x="6.5" y="6.5" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="3" width="14" height="14" rx="1.5" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/></svg>
+        <kbd class="tool-key">A</kbd>
+      </button>
+      <button class="tool-btn" data-tool="add-bollard" title="Add bollard — 165 CHS on a 220 OD plate; click to place (B)">
+        <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="3.5" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/></svg>
+        <kbd class="tool-key">B</kbd>
+      </button>
+      <button class="tool-btn" data-tool="trace" title="Trace — sketch a rough shape freehand; ZoneCAD straightens it and places posts + panels (T)">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M3 15c2-4 3-9 6-9 2 0 1 4 3 4s2-6 5-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="1.5" y="13.5" width="3" height="3" rx="0.5" fill="currentColor"/><rect x="15.5" y="2.5" width="3" height="3" rx="0.5" fill="currentColor"/></svg>
+        <kbd class="tool-key">T</kbd>
+      </button>
+
+      </div>
+      <div class="toolbox-sep"></div>
+      <span class="toolbox-label">Draw</span>
+      <div class="tool-group">
+
+      <button class="tool-btn" data-tool="zone" title="Draw rectangular zone (Z)">
+        <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="1.5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3.5 2"/></svg>
+        <kbd class="tool-key">Z</kbd>
+      </button>
+      <button class="tool-btn" data-tool="zone-circle" title="Draw circular zone (C)">
+        <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3.5 2"/><line x1="10" y1="10" x2="17" y2="10" stroke="currentColor" stroke-width="1.5"/></svg>
+        <kbd class="tool-key">C</kbd>
+      </button>
+      <button class="tool-btn" data-tool="add-label" title="Markup — click to place a text note (N)">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M4 5h12M10 5v11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <kbd class="tool-key">N</kbd>
+      </button>
+
+      </div>
+      <div class="toolbox-sep"></div>
+      <span class="toolbox-label">Modify</span>
+      <div class="tool-group">
+
+      <button class="tool-btn" id="tb-add-panel" title="Add panel between selected posts (P)" disabled>
+        <svg viewBox="0 0 20 20" fill="none"><rect x="1.5" y="4" width="4" height="12" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="14.5" y="4" width="4" height="12" rx="1" stroke="currentColor" stroke-width="1.5"/><line x1="5.5" y1="8.5" x2="14.5" y2="8.5" stroke="currentColor" stroke-width="1.5"/><line x1="5.5" y1="11.5" x2="14.5" y2="11.5" stroke="currentColor" stroke-width="1.5"/></svg>
+        <kbd class="tool-key">P</kbd>
+      </button>
+      <button class="tool-btn" id="tb-flip-mesh" title="Flip mesh side on selected panels" disabled>
+        <svg viewBox="0 0 20 20" fill="none"><path d="M3 7.5h10.5l-3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 12.5H6.5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+
+      </div>
+      <div class="toolbox-sep"></div>
+      <span class="toolbox-label">Constrain</span>
+      <div class="tool-group">
+
+      <button class="tool-btn" id="tb-align-h" title="Align horizontal — same Y (H)" disabled>
+        <svg viewBox="0 0 20 20" fill="none">
+          <line x1="2" y1="10" x2="18" y2="10" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="7" cy="10" r="2.5" fill="currentColor"/>
+          <circle cx="13" cy="10" r="2.5" fill="currentColor"/>
+        </svg>
+        <kbd class="tool-key">H</kbd>
+      </button>
+      <button class="tool-btn" id="tb-align-v" title="Align vertical — same X (V)" disabled>
+        <svg viewBox="0 0 20 20" fill="none">
+          <line x1="10" y1="2" x2="10" y2="18" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="10" cy="7" r="2.5" fill="currentColor"/>
+          <circle cx="10" cy="13" r="2.5" fill="currentColor"/>
+        </svg>
+        <kbd class="tool-key">V</kbd>
+      </button>
+      <button class="tool-btn" id="tb-tie-edge" title="Tie to layout edge (E)" disabled>
+        <svg viewBox="0 0 20 20" fill="none">
+          <line x1="3" y1="3" x2="3" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <line x1="3" y1="10" x2="14" y2="10" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 2"/>
+          <circle cx="15" cy="10" r="2.5" fill="currentColor"/>
+        </svg>
+        <kbd class="tool-key">E</kbd>
+      </button>
+      <button class="tool-btn" id="tb-lock" title="Lock selected post(s) in place (K)" disabled>
+        <svg viewBox="0 0 20 20" fill="none">
+          <rect x="4.5" y="9" width="11" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M7 9V6.5a3 3 0 0 1 6 0V9" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="10" cy="13" r="1.3" fill="currentColor"/>
+        </svg>
+        <kbd class="tool-key">K</kbd>
+      </button>
+      <button class="tool-btn" id="tb-collinear" title="Make collinear — first of 3 posts onto the line of the other two" disabled>
+        <svg viewBox="0 0 20 20" fill="none">
+          <line x1="2" y1="14" x2="18" y2="6" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="4" cy="13" r="2" fill="currentColor"/>
+          <circle cx="10" cy="10" r="2" fill="currentColor"/>
+          <circle cx="16" cy="7" r="2" fill="currentColor"/>
+        </svg>
+      </button>
+      <button class="tool-btn" id="tb-angle" title="Set angle — bearing of first post relative to second (2 posts)" disabled>
+        <svg viewBox="0 0 20 20" fill="none">
+          <line x1="3" y1="16" x2="17" y2="16" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="3" y1="16" x2="15" y2="6" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M13 16a10 10 0 0 0-2.2-4.5" stroke="currentColor" stroke-width="1.2"/>
+        </svg>
+      </button>
+      <button class="tool-btn" data-tool="dimension" id="tb-dimension" title="Dimension — click two posts to set a distance (D)">
+        <svg viewBox="0 0 20 20" fill="none">
+          <line x1="3" y1="4" x2="3" y2="16" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="17" y1="4" x2="17" y2="16" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="3" y1="10" x2="17" y2="10" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M3 10l3-2v4z M17 10l-3-2v4z" fill="currentColor"/>
+        </svg>
+        <kbd class="tool-key">D</kbd>
+      </button>
+      <button class="tool-btn" data-tool="panelDim" id="tb-paneldim" title="Set panel width — click a panel to set its width (up to the max panel run); the adjacent post pivots to hold it (W)">
+        <svg viewBox="0 0 20 20" fill="none">
+          <line x1="3" y1="7" x2="3" y2="17" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="17" y1="7" x2="17" y2="17" stroke="currentColor" stroke-width="1.5"/>
+          <line x1="3" y1="13" x2="17" y2="13" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M3 13l3-2v4z M17 13l-3-2v4z" fill="currentColor"/>
+          <text x="10" y="7.5" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor">P</text>
+        </svg>
+        <kbd class="tool-key">W</kbd>
+      </button>
+      </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <!-- Trace tool commit bar — shown by main.js while tracing with ≥1 stroke -->
+    <div id="trace-bar" style="display:none">
+      <span class="trace-hint">Draw walls · gaps become doorways</span>
+      <button id="trace-done" class="btn btn-primary" type="button">✓ Done</button>
+      <button id="trace-clear" class="btn" type="button">✕ Clear</button>
+    </div>
+  </div>
+
+  <!-- ── Status bar ───────────────────────────────────────────────────────── -->
+  <div id="statusbar">
+    <span id="status-metrics"></span>
+    <span id="status-selection"></span>
+    <span id="status-broken" title="Constraints the solver couldn't satisfy — shown in red on the canvas"></span>
+    <span class="status-hint" id="status-hint">Right-click to add post · Middle-drag / Space-drag to pan · V=Select G=Move R=Measure · F=Fit</span>
+  </div>
+
+</div>
+
+<!-- ── Context menu ────────────────────────────────────────────────────────── -->
+<div id="ctx-menu" hidden></div>
+
+<!-- ── Constraint badge tooltip ─────────────────────────────────────────────── -->
+<div id="constraint-tooltip" style="display:none;position:fixed;z-index:2000;pointer-events:none;background:#12182a;border:1px solid #3a4460;color:#c8d0e0;padding:4px 9px;border-radius:4px;font-size:12px;font-family:system-ui,sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.5)"></div>
+
+<!-- ── Measure tool tooltip ──────────────────────────────────────────────────── -->
+<div id="measure-tooltip" style="display:none;position:fixed;z-index:2000;pointer-events:none;background:#1a1218;border:1px solid #803030;color:#f0c0c0;padding:4px 9px;border-radius:4px;font-size:12px;font-family:system-ui,sans-serif;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.5)"></div>
+
+<!-- ── Background calibration dialog ──────────────────────────────────────── -->
+<dialog id="modal-bg-calibrate">
+  <div class="dialog-header">
+    <h2>Calibrate Background Scale</h2>
+  </div>
+  <div class="dialog-body">
+    <p style="margin:0 0 14px;color:var(--text-dim);font-size:13px">
+      Enter the real-world distance between the two points you clicked.
+    </p>
+    <form id="form-bg-calibrate">
+      <div class="form-row">
+        <label for="bg-cal-dist">Distance (mm)</label>
+        <input id="bg-cal-dist" type="number" name="distMm" min="1" step="1" placeholder="e.g. 5000" required>
+      </div>
+      <div class="dialog-footer" style="border-top:none;padding-top:4px">
+        <button type="button" id="btn-bg-cal-cancel" class="btn btn-secondary">Cancel</button>
+        <button type="submit" class="btn btn-primary">Apply Scale</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- ── New Document dialog ─────────────────────────────────────────────────── -->
+<dialog id="modal-new">
+  <div class="dialog-header">
+    <h2>New Layout</h2>
+  </div>
+  <div class="dialog-body">
+    <form id="form-new">
+      <fieldset>
+        <legend>Layout Size</legend>
+        <div class="form-row">
+          <label for="new-widthM">Width (m)</label>
+          <input id="new-widthM"  type="number" name="widthM"  value="12" min="1" max="2000" step="0.5">
+        </div>
+        <div class="form-row">
+          <label for="new-heightM">Height (m)</label>
+          <input id="new-heightM" type="number" name="heightM" value="8"  min="1" max="2000" step="0.5">
+        </div>
+      </fieldset>
+      <div class="dialog-footer" style="border-top:none;padding-top:0">
+        <button type="button" id="btn-new-cancel" class="btn btn-secondary">Cancel</button>
+        <button type="submit"                      class="btn btn-primary">Create</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- ── Settings dialog ─────────────────────────────────────────────────────── -->
+<dialog id="modal-settings">
+  <div class="dialog-header">
+    <h2>Settings</h2>
+  </div>
+  <div class="dialog-body">
+    <form id="form-settings">
+      <fieldset>
+        <legend>Navigation</legend>
+        <div class="form-row">
+          <label for="s-panSens">Pan sensitivity</label>
+          <input id="s-panSens"    type="range" name="panSensitivity"  min="0.2" max="3" step="0.1" value="1">
+        </div>
+        <div class="form-row">
+          <label for="s-zoomSens">Zoom sensitivity</label>
+          <input id="s-zoomSens"   type="range" name="zoomSensitivity" min="0.2" max="3" step="0.1" value="1">
+        </div>
+        <div class="form-row">
+          <label for="s-zoomCursor">Zoom to cursor</label>
+          <input id="s-zoomCursor" type="checkbox" name="zoomToCursor" checked>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Grid &amp; Snapping</legend>
+        <div class="form-row">
+          <label for="s-snap">Enable snap grid</label>
+          <input id="s-snap" type="checkbox" name="snapEnabled" checked>
+        </div>
+        <div class="form-row snap-spacing-row">
+          <label for="s-snapMm">Snap spacing (mm)</label>
+          <input id="s-snapMm" type="number" name="snapMm" min="1" max="1000" value="100">
+        </div>
+        <div class="form-row">
+          <label for="s-rot-snap">Rotation snap (°, 0 = free)</label>
+          <input id="s-rot-snap" type="number" name="rotSnapDeg" min="0" max="90" step="1" value="5" style="flex:0 0 80px">
+        </div>
+        <div class="form-row">
+          <label for="s-polar-snap">Polar/angle snap (°, 0 = off)</label>
+          <input id="s-polar-snap" type="number" name="polarSnapDeg" min="0" max="90" step="1" value="0" style="flex:0 0 80px">
+        </div>
+        <div class="form-row">
+          <label for="s-trace-snap">Trace angle steps</label>
+          <select id="s-trace-snap" name="traceSnapDeg" style="flex:0 0 80px">
+            <option value="90">90°</option>
+            <option value="45" selected>45°</option>
+            <option value="22.5">22.5°</option>
+            <option value="15">15°</option>
+          </select>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Display</legend>
+        <div class="form-row">
+          <label for="s-unit">Units</label>
+          <select id="s-unit" name="displayUnit" style="flex:0 0 120px">
+            <option value="m">Metres</option>
+            <option value="mm">Millimetres</option>
+          </select>
+        </div>
+      </fieldset>
+      <!-- Panels (max run / divisor) moved to Zone Configuration (? menu). Dark / labels / layers are toolbar toggles. -->
+      <fieldset>
+        <legend>Layout Size</legend>
+        <div class="form-row">
+          <label for="s-lw">Width (m)</label>
+          <input id="s-lw" type="number" name="layoutWidthM" min="1" max="2000" step="0.5" style="flex:0 0 80px">
+        </div>
+        <div class="form-row">
+          <label for="s-lh">Height (m)</label>
+          <input id="s-lh" type="number" name="layoutHeightM" min="1" max="2000" step="0.5" style="flex:0 0 80px">
+        </div>
+      </fieldset>
+    </form>
+  </div>
+  <div class="dialog-footer">
+    <button id="settings-close" class="btn btn-primary">Close</button>
+  </div>
+</dialog>
+
+<!-- ── Zone Configuration dialog (inherent panel/zone variables; opened from ? menu) ── -->
+<dialog id="modal-zoneconfig">
+  <div class="dialog-header">
+    <h2>Zone Configuration</h2>
+  </div>
+  <div class="dialog-body">
+    <p style="margin:0 0 12px;color:var(--text-dim);font-size:12px">
+      Inherent panel/zone variables — these drive how long runs are split into standard panels.
+    </p>
+    <form id="form-zoneconfig">
+      <fieldset>
+        <legend>Panels</legend>
+        <div class="form-row">
+          <label for="z-max-panel">Max panel run (mm)</label>
+          <input id="z-max-panel" type="number" name="maxPanelRunMm" min="500" max="6000" step="50" value="2400" style="flex:0 0 100px">
+        </div>
+        <div class="form-row">
+          <label for="z-panel-divisor" title="Long runs split into near-equal bays rounded to this increment; one balance panel absorbs the remainder">Panel size divisor (mm)</label>
+          <input id="z-panel-divisor" type="number" name="panelDivisorMm" min="1" max="1000" step="1" value="100" style="flex:0 0 100px">
+        </div>
+      </fieldset>
+    </form>
+  </div>
+  <div class="dialog-footer">
+    <button id="zoneconfig-close" class="btn btn-primary">Close</button>
+  </div>
+</dialog>
+
+<!-- ── Properties dialog ───────────────────────────────────────────────────── -->
+<dialog id="modal-props">
+  <div class="dialog-header">
+    <h2 class="props-title">Properties</h2>
+  </div>
+  <div class="dialog-body">
+
+    <!-- Mixed type message -->
+    <p id="props-mixed" style="display:none;color:var(--text-dim);font-size:12px;padding:8px 0">
+      Selection contains mixed object types. Select only posts or only spans to edit properties.
+    </p>
+
+    <!-- Post fields -->
+    <div id="props-post">
+      <form id="form-props-post">
+        <fieldset>
+          <legend id="p-legend">Post</legend>
+          <div class="form-row" id="p-row-material">
+            <label for="p-material">Material</label>
+            <select id="p-material" name="material">
+              <option value="aluminium">Aluminium (86×86)</option>
+              <option value="z65">Z65 (65×2.0 SHS)</option>
+              <option value="steel">Steel (75×3 SHS)</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="p-height">Height (mm)</label>
+            <input id="p-height" type="number" name="heightMm" min="500" max="6000" step="1" style="flex:0 0 80px">
+            <div class="btn-group">
+              <button type="button" class="btn btn-sm" data-height="2000">2000</button>
+              <button type="button" class="btn btn-sm" data-height="2200">2200</button>
+              <button type="button" class="btn btn-sm" data-height="2400">2400</button>
+            </div>
+          </div>
+          <div class="form-row" id="p-row-footplate">
+            <label for="p-footplate">Footplate</label>
+            <select id="p-footplate" name="footplate">
+              <option value="FPM4">FPM4 — 180×180, 4 holes</option>
+              <option value="FPM2">FPM2 — 180×100, 2 holes</option>
+              <option value="FPC">FPC — Corner offset</option>
+              <option value="FPO">FPO — Side offset</option>
+              <option value="FPZ">FPZ — 150×150, 4 holes (Z65)</option>
+            </select>
+          </div>
+          <div class="form-row" id="p-row-fpr">
+            <label for="p-fpr">Footplate rotation (°)</label>
+            <input id="p-fpr" type="number" name="footplateRotationDeg" min="0" max="359" step="90" style="flex:0 0 80px">
+            <div class="btn-group">
+              <button type="button" class="btn btn-sm" data-fpr="0">0°</button>
+              <button type="button" class="btn btn-sm" data-fpr="90">90°</button>
+              <button type="button" class="btn btn-sm" data-fpr="180">180°</button>
+              <button type="button" class="btn btn-sm" data-fpr="270">270°</button>
+            </div>
+          </div>
+        </fieldset>
+      </form>
+      <!-- Constraints panel — shown for 1 or 2 post selection -->
+      <fieldset id="props-constraint-section">
+        <legend id="props-constraint-legend">Constraints</legend>
+        <div id="props-constraint-list"></div>
+        <div id="props-constraint-add" class="constraint-add-row">
+          <button type="button" class="btn btn-sm" id="pca-tie">Tie to Edge…</button>
+          <button type="button" class="btn btn-sm" id="pca-dim">Dimension…</button>
+          <button type="button" class="btn btn-sm" id="pca-align-h">Align H</button>
+          <button type="button" class="btn btn-sm" id="pca-align-v">Align V</button>
+        </div>
+      </fieldset>
+    </div>
+
+    <!-- Span fields -->
+    <div id="props-span" style="display:none">
+      <form id="form-props-span">
+        <fieldset>
+          <legend>Span</legend>
+          <div class="form-row">
+            <label for="s-kind">Type</label>
+            <select id="s-kind" name="spanKind">
+              <option value="panel">Panel</option>
+              <option value="hingedDoor">Hinged Door</option>
+              <option value="swingGate">Swing Gate</option>
+              <option value="slidingDoor">Sliding Door</option>
+              <option value="cantileverGate">Cantilever Gate</option>
+              <option value="gap">Gap (no panel)</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="s-mesh">Mesh side</label>
+            <select id="s-mesh" name="meshSide">
+              <option value="A">Side A (left of A→B)</option>
+              <option value="B">Side B (right of A→B)</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="s-floor">Floor clearance (mm)</label>
+            <input id="s-floor" type="number" name="floorClearanceMm" min="0" max="500" step="5" style="flex:0 0 80px">
+          </div>
+        </fieldset>
+        <fieldset id="props-door-fields" style="display:none">
+          <legend>Door / Gate</legend>
+          <div class="form-row">
+            <label>Hinge position</label>
+            <div class="hinge-pos-grid" id="d-hinge-pos">
+              <button type="button" class="btn btn-sm hinge-pos-btn" data-pos="Al">A — left</button>
+              <button type="button" class="btn btn-sm hinge-pos-btn" data-pos="Ar">A — right</button>
+              <button type="button" class="btn btn-sm hinge-pos-btn" data-pos="Bl">B — left</button>
+              <button type="button" class="btn btn-sm hinge-pos-btn" data-pos="Br">B — right</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="d-open-angle">Open angle (°)</label>
+            <input id="d-open-angle" type="number" name="doorOpenAngle" min="10" max="180" step="5" value="45" style="flex:0 0 80px">
+            <div class="btn-group">
+              <button type="button" class="btn btn-sm" data-angle="45">45°</button>
+              <button type="button" class="btn btn-sm" data-angle="90">90°</button>
+              <button type="button" class="btn btn-sm" data-angle="180">180°</button>
+            </div>
+          </div>
+        </fieldset>
+        <fieldset id="props-sliding-fields" style="display:none">
+          <legend>Sliding Door</legend>
+          <div class="form-row">
+            <label for="sd-slide-end">Opens toward</label>
+            <select id="sd-slide-end" name="slideEnd">
+              <option value="A">Post A</option>
+              <option value="B">Post B</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="sd-track-side">Track side</label>
+            <select id="sd-track-side" name="trackSide">
+              <option value="left">Left of A→B</option>
+              <option value="right">Right of A→B</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="sd-track-extend">Track extension (mm)</label>
+            <input id="sd-track-extend" name="trackExtendMm" type="number" min="0" step="10" placeholder="0">
+          </div>
+          <div class="form-row">
+            <label for="sd-gate-extend">Gate width extension (mm)</label>
+            <input id="sd-gate-extend" name="gateExtendMm" type="number" min="0" step="10" placeholder="0">
+          </div>
+        </fieldset>
+        <fieldset id="props-cantilever-fields" style="display:none">
+          <legend>Cantilever Gate</legend>
+          <div class="form-row">
+            <label for="cg-retract-end">Retracts past</label>
+            <select id="cg-retract-end" name="retractEnd">
+              <option value="A">Post A</option>
+              <option value="B">Post B</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="cg-track-side">Track side</label>
+            <select id="cg-track-side" name="cgTrackSide">
+              <option value="left">Left of A→B</option>
+              <option value="right">Right of A→B</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="cg-front-offset">Front wheel offset (mm)</label>
+            <input id="cg-front-offset" name="frontWheelOffsetMm" type="number" min="0" step="10" placeholder="auto (50mm gap)">
+          </div>
+          <div class="form-row">
+            <label for="cg-roller-spacing">Roller spacing (mm)</label>
+            <input id="cg-roller-spacing" name="rollerSpacingMm" type="number" min="100" step="10" placeholder="500">
+          </div>
+          <div class="form-row">
+            <label for="cg-tail-overhang">Tail overhang (mm)</label>
+            <input id="cg-tail-overhang" name="tailOverhangMm" type="number" min="0" step="10" placeholder="150">
+          </div>
+          <div class="form-row">
+            <label for="cg-catcher-offset">End-catcher offset (mm)</label>
+            <input id="cg-catcher-offset" name="catcherOffsetMm" type="number" step="10" placeholder="0">
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Computed (read-only)</legend>
+          <div class="form-row">
+            <label>Run length</label>
+            <span class="span-run-display bom-readonly">—</span>
+          </div>
+          <div class="form-row">
+            <label>Panel height</label>
+            <span class="span-ht-display bom-readonly">—</span>
+          </div>
+        </fieldset>
+      </form>
+    </div>
+
+    <!-- Zone fields -->
+    <div id="props-zone" style="display:none">
+      <form id="form-props-zone">
+        <fieldset>
+          <legend>Zone</legend>
+          <div class="form-row">
+            <label for="z-name">Name</label>
+            <input id="z-name" type="text" name="zoneName" placeholder="Zone" style="flex:1;min-width:0">
+          </div>
+          <div class="form-row">
+            <label for="z-shape">Shape</label>
+            <select id="z-shape" name="zoneShape" style="flex:0 0 140px">
+              <option value="rect">Rectangle</option>
+              <option value="circle">Circle (radius)</option>
+            </select>
+          </div>
+          <div class="form-row" id="z-rect-rows">
+            <label for="z-w">Width (mm)</label>
+            <input id="z-w" type="number" name="zoneWidthMm" min="1" step="1" style="flex:0 0 100px">
+          </div>
+          <div class="form-row" id="z-rect-h-row">
+            <label for="z-h">Height (mm)</label>
+            <input id="z-h" type="number" name="zoneHeightMm" min="1" step="1" style="flex:0 0 100px">
+          </div>
+          <div class="form-row" id="z-circle-row" style="display:none">
+            <label for="z-r">Radius (mm)</label>
+            <input id="z-r" type="number" name="zoneRadiusMm" min="1" step="1" style="flex:0 0 100px">
+          </div>
+        </fieldset>
+      </form>
+    </div>
+
+  </div>
+  <div class="dialog-footer">
+    <button id="props-close" class="btn btn-primary">Close</button>
+  </div>
+</dialog>
+
+<!-- ── BOM dialog ──────────────────────────────────────────────────────────── -->
+<dialog id="modal-bom">
+  <div class="dialog-header">
+    <h2>Parts Summary</h2>
+  </div>
+  <div class="dialog-body">
+    <div id="bom-content"></div>
+  </div>
+  <div class="dialog-footer">
+    <button id="bom-csv" class="btn btn-secondary">Download CSV</button>
+    <button id="bom-close" class="btn btn-primary">Close</button>
+  </div>
+</dialog>
+
+<!-- ── Help / keyboard shortcuts dialog ─────────────────────────────────────── -->
+<dialog id="modal-help">
+  <div class="dialog-header">
+    <h2>Keyboard Shortcuts</h2>
+  </div>
+  <div class="dialog-body">
+    <div class="help-grid">
+      <h3>Tools</h3>
+      <kbd>V</kbd><span>Select</span>
+      <kbd>G</kbd><span>Move (free drag, no object snapping)</span>
+      <kbd>A</kbd><span>Add post (click to place)</span>
+      <kbd>B</kbd><span>Add bollard (click to place; no panels)</span>
+      <kbd>S</kbd><span>Split — click a panel to insert a post</span>
+      <kbd>R</kbd><span>Measure distance</span>
+      <kbd>Z</kbd><span>Rectangular zone</span>
+      <kbd>C</kbd><span>Circular zone</span>
+      <kbd>N</kbd><span>Markup — place a text note</span>
+      <kbd>T</kbd><span>Trace — freehand-sketch a layout (Enter = done)</span>
+      <kbd>P</kbd><span>Add panel between selected posts</span>
+      <kbd>Esc</kbd><span>Back to Select / cancel</span>
+
+      <h3>Edit</h3>
+      <kbd>Ctrl+Z</kbd><span>Undo</span>
+      <kbd>Ctrl+Y</kbd><span>Redo</span>
+      <kbd>Ctrl+C / V</kbd><span>Copy / Paste</span>
+      <kbd>Ctrl+D</kbd><span>Duplicate selection</span>
+      <kbd>Ctrl+A</kbd><span>Select all</span>
+      <kbd>Ctrl+S</kbd><span>Save layout file</span>
+      <kbd>Del</kbd><span>Delete selection</span>
+      <kbd>Arrows</kbd><span>Nudge (Shift = 1&nbsp;mm fine)</span>
+
+      <h3>Constrain</h3>
+      <kbd>H</kbd><span>Align horizontal (2+ posts selected, aligns to first)</span>
+      <kbd>V</kbd><span>Align vertical (2+ posts selected)</span>
+      <kbd>E</kbd><span>Tie to layout edge (post selected)</span>
+      <kbd>K</kbd><span>Lock selected post(s) in place</span>
+      <kbd>D</kbd><span>Dimension — click two posts to set a distance</span>
+      <kbd>W</kbd><span>Panel width — click a panel to set its width (≤ max panel run)</span>
+
+      <h3>View</h3>
+      <kbd>F</kbd><span>Zoom to fit / selection</span>
+      <kbd>Scroll</kbd><span>Zoom · Middle-drag or Space-drag = pan</span>
+
+      <h3>Placement</h3>
+      <kbd>Shift</kbd><span>Ortho lock while dragging (0/45/90°) · free-place while dragging a dimension label</span>
+      <kbd>Right-click</kbd><span>Add post · context menu</span>
+    </div>
+  </div>
+  <div class="dialog-footer">
+    <button id="help-close" class="btn btn-primary">Close</button>
+  </div>
+</dialog>
+
+<!-- ── Welcome dialog (shown on load) ───────────────────────────────────────── -->
+<dialog id="modal-welcome">
+  <div class="dialog-header">
+    <h2>Welcome to ZoneCAD</h2>
+  </div>
+  <div class="dialog-body welcome-doc">
+    <p>ZoneCAD is CellTec's in-browser plan-view designer for modular fencing and zoning.
+       Lay out posts, link them with panels, doors and gates, mark out zones and labels —
+       then pull a live parts list (BOM) or export the drawing to DXF or PNG.</p>
+    <p>Under the hood is a <strong>complete 2-D geometric constraint solver</strong>. Every
+       constraint confines a post to a locus — a line (align, edge tie, bearing, collinear) or a
+       circle (dimension) — and the solver places each post where its loci intersect. Any pairing
+       works: polar placement (angle&nbsp;+&nbsp;distance), trilateration (two distances), a set
+       distance along a line. The freer post is the one that moves, read-only reference dimensions
+       show in (brackets), and anything the solver can't satisfy turns red instead of being hidden.
+       Outlined value pills are editable — blue for post-to-post dimensions, violet&nbsp;▭ for panel
+       widths; plain violet pills are the derived per-panel dimensions.</p>
+    <p>New here? Open <strong>Examples&nbsp;▾</strong> in the toolbar: the <em>Constraints Sample</em>
+       has one of every constraint to experiment with, alongside dimensioned hinged-door,
+       sliding-door and cantilever-gate layouts.</p>
+
+    <h3>Recent changes</h3>
+    <ul class="welcome-changelog">
+      <li><strong>Panel width constraint (W)</strong> — click a panel (or right-click → <em>Set Panel Width…</em>) and type its physical width. Capped at the max panel run (Zone Configuration, default 2400) — a longer run needs multiple panels, so dimension post-to-post instead. The adjacent post pivots on its hinge pin with the width locked; shows as an outlined ▭ dimension.</li>
+      <li><strong>Everything lands on 100&nbsp;mm panel increments</strong> — long runs split near-equal on the 100&nbsp;mm grid; dragging an aligned post magnet-snaps its spacing to 100&nbsp;mm (label turns green on-grid); Trace commits and rescales onto the same grid. Tune in ?&nbsp;→&nbsp;Zone&nbsp;Configuration.</li>
+      <li><strong>Tidier dimensions</strong> — auto panel dims flip to the clearer side and stand down where you've placed a real dimension; drag any dimension label and it pops between tidy rows (hold&nbsp;Shift for free placement); door leaf dims lie flat along the opening.</li>
+      <li><strong>BOM worksheet</strong> — sortable columns; hinged doors / swing gates counted as panels with a Type column; collapsed cut list + spans; CSV export.</li>
+      <li><strong>Toolbar rework</strong> — a <em>Visibility ▾</em> dropdown with an eyeball tick per layer (zones, background, constraints, mesh, post labels, panel dimensions), dark/light button, icon Undo/Redo; units moved to Settings; grid snap now off by default (object + align snapping still on).</li>
+      <li><strong>Z65 post range</strong> — 65×65×2.0 SHS (Properties → Material), steel-style rendering, 7.5&nbsp;mm panel clearance, FPZ 150×150 baseplate.</li>
+      <li><strong>Space-drag pans</strong> (like middle-mouse) · undo history is deeper (30) · contextual hints in the status bar tell you what the active tool wants next.</li>
+    </ul>
+
+    <!-- Install hints — main.js shows exactly one of these when applicable -->
+    <p id="welcome-install-android" hidden class="welcome-install">
+      📲 <strong>Install ZoneCAD</strong> for a full-screen app with no browser bar:
+      <button id="welcome-install-btn" class="btn btn-primary" type="button" style="margin-left:8px">Install</button>
+    </p>
+    <p id="welcome-install-ios" hidden class="welcome-install">
+      📲 <strong>Full-screen on iPhone/iPad:</strong> tap Share <span aria-hidden="true">⎋</span> then
+      <em>Add to Home Screen</em> — ZoneCAD opens as an app with no browser bar.
+    </p>
+
+    <p class="welcome-bugs">Bug reports to <a href="mailto:g.buckley@celltec.com.au">g.buckley@celltec.com.au</a></p>
+  </div>
+  <div class="dialog-footer welcome-footer">
+    <label class="welcome-skip"><input type="checkbox" id="welcome-skip"> Don't show this again</label>
+    <button id="welcome-close" class="btn btn-primary">Get started</button>
+  </div>
+</dialog>
+
+<!-- ── Features / documentation dialog ──────────────────────────────────────── -->
+<dialog id="modal-features">
+  <div class="dialog-header">
+    <h2>ZoneCAD — Features &amp; Guide</h2>
+  </div>
+  <div class="dialog-body">
+    <div class="features-doc">
+      <p class="features-intro">ZoneCAD is an in-browser plan-view designer for modular fencing and zoning: place posts, link them with panels/doors/gates, add zones and labels, then export a parts list or DXF. Everything below is currently implemented.</p>
+
+      <h3>Tools (left toolbox)</h3>
+      <dl>
+        <dt>Select (V)</dt><dd>Click to select; drag a post, zone or label to move it. Drag empty space to box-select posts. A single selected post shows a rotation handle. Click the rendered leaf/track of a door or gate to select it, not just its centreline.</dd>
+        <dt>Move (G)</dt><dd>Like Select, but tuned for repositioning: object snapping (hinge pins / span lines) and the edit handles are off, so posts don't jump onto brackets. Post-to-post alignment guides, grid snap and Shift-ortho still apply.</dd>
+        <dt>Add Post (A)</dt><dd>Click to drop a post; it auto-links to its nearest unconnected neighbour with a panel. Stays active for placing several.</dd>
+        <dt>Add Bollard (B)</dt><dd>Click to place a bollard — 165×3.2 CHS post with a welded cap on a 220&nbsp;OD circular baseplate (4×Ø17 at 192.5&nbsp;PCD). Constrains exactly like a post (align, dimension, angle, tie, lock) but never links with panels.</dd>
+        <dt>Markup</dt><dd>Click to place free-floating text; type it inline. Double-click to re-edit, drag to move, Delete to remove.</dd>
+        <dt>Measure (R)</dt><dd>Click two points — snaps to posts and bracket pins — for a live distance readout. Non-destructive.</dd>
+        <dt>Rectangular / Circular Zone (Z / C)</dt><dd>Drag out a named zone region for planning areas; editable size and colour.</dd>
+        <dt>Trace (T)</dt><dd>Sketch a rough shape freehand — one stroke per wall run. ZoneCAD snaps every edge to the nearest angle step (Settings, default 45°), places a post at each corner, and links panels between them. Leave a gap between two strokes and it becomes a doorway with the flanking posts kept aligned. Draw as many strokes as you like, then tap <strong>✓ Done</strong> (or Enter). The layout auto-sizes around the shape; the first dimension you then set rescales the whole trace to real size. Alignment and angle constraints are added automatically so the shape holds its form.</dd>
+        <dt>Split (S)</dt><dd>Click anywhere along a panel to insert a post there, splitting it into two panels that inherit the original's settings. The tool stays active, so you can keep clicking to subdivide a run.</dd>
+        <dt>Add Panel (P)</dt><dd>Creates a panel between two or more selected posts (nearest valid pair).</dd>
+        <dt>Flip Mesh</dt><dd>Flips which face the mesh sits on for the selected panels.</dd>
+        <dt>Panel Width (W)</dt><dd>Click a panel and type its physical width — the ▭ constraint holds it as the post pivots on its hinge pin. Values above the max panel run (Zone Configuration, default 2400) are rejected: a longer run needs multiple panels, so dimension post-to-post instead.</dd>
+        <dt>Lock (K)</dt><dd>Pins the selected post(s) at their current position (removes both degrees of freedom).</dd>
+      </dl>
+
+      <h3>Constraints</h3>
+      <p>Constraints hold posts in relationship to each other or the layout, and re-solve automatically when a parent moves (dependency graph with cycle protection). Active constraints show as lettered badges around a post.</p>
+
+      <h4>How it works — degrees of freedom</h4>
+      <p>Every post has <strong>2 degrees of freedom</strong> (its X and Y), and each constraint confines it to a <em>locus</em> — a line or a circle — removing one DOF. <strong>Two constraints fully define a post</strong>; the solver places it where the two loci meet.</p>
+      <ul>
+        <li><strong>Line locus</strong> (removes 1 DOF): <strong>Align H</strong> (a horizontal line), <strong>Align V</strong> (vertical), <strong>Tie to Edge</strong> (a line at the edge), <strong>Collinear</strong> (the line through two other posts, any angle), <strong>Angle</strong> (a ray at a bearing). A post with just one of these <em>slides along that line</em>.</li>
+        <li><strong>Circle locus</strong> (removes 1 DOF): <strong>Dimension</strong> — a fixed distance from another post. A post with just one swings on that circle.</li>
+        <li><strong>Lock</strong> removes both DOF (a fixed datum).</li>
+      </ul>
+      <p>Because it solves the two loci together, any pairing works:</p>
+      <ul>
+        <li><strong>Line + Circle</strong> — e.g. <em>Align V + Dimension</em> ("same X as A, 1500&nbsp;mm from B"), or <em>Collinear + Dimension</em> (a set distance along a line).</li>
+        <li><strong>Angle + Dimension = polar placement</strong> — "30° and 1000&nbsp;mm from A".</li>
+        <li><strong>Two Dimensions = trilateration</strong> — positioned by its distance to two posts (two circles meet at two points; the nearer one to where the post currently sits is chosen, so you can drag to pick the side).</li>
+        <li><strong>Line + Line</strong> — two lines meet at a point (e.g. Collinear + Align, or two Angles).</li>
+      </ul>
+      <p>A <em>third</em> constraint, or two parallel lines that can't both hold (e.g. two Align V), is refused with a reason. A pairing that has no solution (circles too far apart, a distance shorter than the line reaches) isn't blocked — it's placed as close as possible and flagged <strong>red</strong>.</p>
+
+      <h4>Rules of thumb</h4>
+      <ul>
+        <li><strong>Anchor a corner.</strong> Leave one post free (no constraints) and reference everything back to it. Constraints can't form a <strong>loop</strong> (A→B→…→A) — if one is refused with "would create a constraint loop", flip a constraint's direction so nothing points back to the anchor.</li>
+        <li><strong>The freer post moves.</strong> When you constrain two posts, the tool automatically makes the <em>less-constrained</em> one the one that moves, so it won't yank a post that already carries a dimension. For 3+ posts it anchors the most-constrained one.</li>
+        <li>If a constraint can't be satisfied it turns <strong>red</strong> and the status bar shows how many are unsatisfied — nothing fails silently. Refused constraints explain why in a toast.</li>
+      </ul>
+
+      <h4>Colour legend</h4>
+      <ul>
+        <li><strong style="color:#5b9bd5">Blue</strong> — a driving dimension/angle that's satisfied.</li>
+        <li><strong style="color:#9e72d1">Violet</strong> — a reference (driven, read-only) dimension: shows the live value in parentheses, never moves posts.</li>
+        <li><strong style="color:#e5484d">Red</strong> — broken: the solver couldn't meet it (label shows <code>target → actual</code>).</li>
+      </ul>
+
+      <dl>
+        <dt>Align Horizontal (H)</dt><dd>Give posts the same Y. With 2+ posts selected they align directly (the freer one moves); with one, pick a reference in the dialog.</dd>
+        <dt>Align Vertical (V)</dt><dd>Same X, same selection rules as above.</dd>
+        <dt>Tie to Edge (E) — <em>double-click its dashed line to edit the distance</em></dt><dd>Fix a post a set distance from a layout edge.</dd>
+        <dt>Dimension (D)</dt><dd>Click one post then another; type the distance inline (accepts math, e.g. <code>500*2</code>). The first post moves to sit exactly that far from the second. If that would over-constrain the post, a <strong>reference dimension</strong> is dropped instead (live length in brackets, no border). <strong>Double-click any dimension to edit it</strong>; drag its line perpendicular and it pops between tidy rows (Shift = free placement).</dd>
+        <dt>Set Angle (∠ button / right-click, 2 posts)</dt><dd>Type a bearing inline; the first post takes that bearing from the second (if the first is the more pinned-down of the two, the freer post moves instead — the geometry you asked for is kept). Combine with a <strong>Dimension</strong> for polar placement, or with an Align to meet a line. <strong>Double-click the angle line or its ° label to edit it.</strong></dd>
+        <dt>Lock in Place (padlock button / right-click)</dt><dd>Pins a post so nothing can move it — anchor a datum.</dd>
+        <dt>Make Collinear (button / right-click, 3 posts)</dt><dd>Puts the first post on the line through the other two. Pair it with a <strong>Dimension</strong> to set exactly how far along that line it sits.</dd>
+      </dl>
+
+      <h3>Span types &amp; components</h3>
+      <dl>
+        <dt>Panel</dt><dd>Mesh infill in a 25×1.6 SHS frame (2 verticals + 3 horizontals + mesh). Runs over 2400 mm auto-split into sub-panels (intermediate "ghost" posts flagged in the BOM).</dd>
+        <dt>Gap</dt><dd>An intentional open span — no panel, just a marked opening.</dd>
+        <dt>Hinged Door / Swing Gate</dt><dd>A leaf swinging from a hinge bracket. Configurable hinge position (four bracket slots) and open angle; hinge brackets drawn at the posts.</dd>
+        <dt>Sliding Door</dt><dd>A panel that rolls along a 40×80 track (length = 2× opening + 200 mm), shown parked at the far/open end. Options: which post it opens toward, track side, and track / gate-width extensions.</dd>
+        <dt>Cantilever Gate</dt><dd>A counterbalanced sliding gate with no ground track. Components: two wheel carriages dimensioned off the rear opening post, an end catcher on the closing post, and an endstop post auto-placed one opening-width back so the gate stays captive when fully open. Options: front-wheel offset, roller spacing, tail overhang, track side, retract side.</dd>
+      </dl>
+
+      <h3>Bill of Materials (BOM)</h3>
+      <p>The <strong>BOM</strong> button opens a live parts summary: posts grouped by material/height/footplate (<strong>including the auto-inserted intermediate "ghost" posts</strong> on long runs, so the count is order-ready — the number of intermediates is also called out under the cut list), spans grouped by kind/size, a panel cut list (verticals, horizontals, mesh area), and dedicated sections itemising sliding-door track + leaf and cantilever gate beam/wheels/catcher/endstop. <strong>Download CSV</strong> exports the whole list for spreadsheets. It updates as you edit.</p>
+
+      <h3>Background floor plan</h3>
+      <p><strong>Import BG</strong> loads a floor-plan image behind the drawing. <strong>Calibrate</strong>: click two points you know the real distance between, enter that distance, and the image is scaled to match — so you can trace at true size. The opacity slider fades it; <strong>Remove BG</strong> clears it.</p>
+
+      <h3>Saving &amp; local caching</h3>
+      <p>Your work <strong>autosaves to this browser</strong> (localStorage) and is restored automatically if you refresh or crash — nothing is uploaded. You'll be warned before leaving with unsaved changes. <strong>Save</strong>/<strong>Load</strong> write and read <code>.zonecad.json</code> files, and the <strong>Recent</strong> menu re-opens recently saved layouts stored locally.</p>
+
+      <h3>Editing &amp; navigation</h3>
+      <ul>
+        <li>Undo / Redo — Ctrl+Z / Ctrl+Y.</li>
+        <li>Copy / Paste / Duplicate — Ctrl+C / Ctrl+V / Ctrl+D; Select All — Ctrl+A; Delete — Del.</li>
+        <li>Arrow keys nudge the selection by the snap step (Shift = 1 mm fine).</li>
+        <li>Hold Shift while dragging to lock to one axis; alignment guides + live gap dimensions appear when a post lines up with another.</li>
+        <li>Object snapping: dragging a post or placing a new one snaps to nearby post centres, hinge pins, midpoints and span lines. Polar/angle snap (Settings) snaps drag/placement to an angle increment.</li>
+        <li>Typed move (M): nudge the selection by an exact <code>dx, dy</code> (math-aware). Right-click a selection for <strong>Array / Repeat</strong> (<code>count, dx, dy</code>).</li>
+        <li>Marquee-drag selects posts, spans, zones and labels together.</li>
+        <li>F frames the selection (or the whole layout); scroll to zoom, middle-drag to pan.</li>
+      </ul>
+
+      <h3>Display &amp; export</h3>
+      <ul>
+        <li>Units m / mm (Settings); light / dark canvas, layer toggles (zones · background · constraints · mesh), post labels and panel dimensions are one-click toolbar toggles.</li>
+        <li><strong>Dimension all panels</strong> (Dim toggle): dimensions every physical panel — each ghost sub-panel of a long run included — showing the true panel width, not the post-to-post centre spacing. Auto-flips to the clearer side, stands down where a real dimension already covers the pair, and carries into the DXF as editable dimensions.</li>
+        <li>Panel bay rules (max panel run, 100&nbsp;mm size divisor) live under ? → Zone Configuration.</li>
+        <li>Readouts: post count + total run length in the status bar (plus an "unsatisfied constraints" warning when any are broken); zone area shown on hover.</li>
+        <li>Export <strong>PNG</strong> (image) and <strong>DXF</strong> (layered CAD: each post / panel / gate / zone is a single grouped object, with optional panel dimensions on a DIMS layer).</li>
+      </ul>
+    </div>
+  </div>
+  <div class="dialog-footer">
+    <button id="features-close" class="btn btn-primary">Close</button>
+  </div>
+</dialog>
+
+<!-- ── Add Constraint dialog ────────────────────────────────────────────────── -->
+<dialog id="modal-add-constraint">
+  <div class="dialog-header">
+    <h2 id="ac-title">Add Constraint</h2>
+  </div>
+  <div class="dialog-body">
+
+    <!-- tieEdge -->
+    <div id="ac-tie-fields">
+      <div class="form-row">
+        <label>Edge</label>
+        <select name="ac-edge">
+          <option value="left">Left</option>
+          <option value="right">Right</option>
+          <option value="bottom">Bottom</option>
+          <option value="top">Top</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Distance from edge (mm)</label>
+        <input type="number" name="ac-tie-val" min="0" step="1" value="500" style="flex:0 0 100px">
+      </div>
+    </div>
+
+    <!-- dimension -->
+    <div id="ac-dim-fields" style="display:none">
+      <div class="form-row">
+        <label>From post</label>
+        <select name="ac-dim-parent" class="ac-parent-select"></select>
+      </div>
+      <div class="form-row">
+        <label>Centre–centre distance (mm)</label>
+        <input type="number" name="ac-dim-val" min="1" step="1" style="flex:0 0 100px">
+      </div>
+    </div>
+
+    <!-- alignH / alignV -->
+    <div id="ac-align-fields" style="display:none">
+      <div class="form-row">
+        <label>Match post</label>
+        <select name="ac-align-parent" class="ac-parent-select"></select>
+      </div>
+    </div>
+
+    <p id="ac-error" class="ac-error-msg" style="display:none"></p>
+  </div>
+  <div class="dialog-footer">
+    <button type="button" id="ac-cancel" class="btn btn-secondary">Cancel</button>
+    <button type="button" id="ac-ok"     class="btn btn-primary">Add Constraint</button>
+  </div>
+</dialog>
+
+<script type="module" src="js/main.js?v=46"></script>
+<script>
+document.getElementById('logo-home-link').addEventListener('click', function(e) {
+  if (!confirm('Leave ZoneCAD?\nUnsaved changes will be lost.')) e.preventDefault();
+});
+</script>
+</body>
+</html>

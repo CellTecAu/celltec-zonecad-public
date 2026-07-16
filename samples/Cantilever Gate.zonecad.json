@@ -1,0 +1,213 @@
+{
+  "schema": "zonecad/1",
+  "units": "mm",
+  "layout": {
+    "id": "layout",
+    "widthM": 5,
+    "heightM": 4,
+    "title": "Cantilever Gate"
+  },
+  "background": null,
+  "objects": [
+    {
+      "id": "l942",
+      "type": "label",
+      "x": 384.40135379791286,
+      "y": 3877.2686017277256,
+      "text": "Cantilever Gate"
+    },
+    {
+      "id": "p943",
+      "type": "post",
+      "x": 2680.7415672029065,
+      "y": 2419.324857291126,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "p944",
+      "type": "post",
+      "x": 2680.7415672029065,
+      "y": 1019.3248572911261,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "s945",
+      "type": "span",
+      "spanKind": "panel",
+      "postA": "p943",
+      "postB": "p944",
+      "faceA": "ny",
+      "faceB": "py",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {}
+    },
+    {
+      "id": "p946",
+      "type": "post",
+      "x": 4080.7415672029065,
+      "y": 1019.3248572911261,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "s947",
+      "type": "span",
+      "spanKind": "panel",
+      "postA": "p946",
+      "postB": "p944",
+      "faceA": "nx",
+      "faceB": "px",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {}
+    },
+    {
+      "id": "p948",
+      "type": "post",
+      "x": 4080.7415672029065,
+      "y": 2419.324857291126,
+      "material": "aluminium",
+      "heightMm": 2000,
+      "footplate": "FPM4",
+      "footplateRotationDeg": 0
+    },
+    {
+      "id": "s949",
+      "type": "span",
+      "spanKind": "panel",
+      "postA": "p948",
+      "postB": "p946",
+      "faceA": "ny",
+      "faceB": "py",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {}
+    },
+    {
+      "id": "s954",
+      "type": "span",
+      "spanKind": "cantileverGate",
+      "postA": "p943",
+      "postB": "p948",
+      "faceA": "px",
+      "faceB": "nx",
+      "heightMm": null,
+      "floorClearanceMm": 175,
+      "meshSide": "A",
+      "kindProps": {
+        "retractEnd": "A",
+        "trackSide": "left"
+      }
+    }
+  ],
+  "constraints": [
+    {
+      "id": "c960",
+      "kind": "alignH",
+      "child": "p943",
+      "parent": "p948",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c963",
+      "kind": "alignH",
+      "child": "p944",
+      "parent": "p946",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c966",
+      "kind": "alignV",
+      "child": "p943",
+      "parent": "p944",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c969",
+      "kind": "alignV",
+      "child": "p946",
+      "parent": "p948",
+      "valueMm": 0,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c972",
+      "kind": "dimension",
+      "child": "p946",
+      "parent": "p948",
+      "valueMm": 1400,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      }
+    },
+    {
+      "id": "c975",
+      "kind": "dimension",
+      "child": "p944",
+      "parent": "p946",
+      "valueMm": 1400,
+      "valueDeg": null,
+      "dim": {
+        "refParent": "centre",
+        "refChild": "centre"
+      },
+      "offsetMm": 374
+    }
+  ],
+  "settings": {
+    "panSensitivity": 1,
+    "zoomSensitivity": 1,
+    "zoomToCursor": true,
+    "snapEnabled": false,
+    "snapMm": 50,
+    "rotSnapDeg": 5,
+    "polarSnapDeg": 0,
+    "displayUnit": "m",
+    "darkMode": true,
+    "showPostLabels": false,
+    "layers": {
+      "zones": true,
+      "background": true,
+      "constraints": true,
+      "mesh": true
+    }
+  },
+  "view": {
+    "panX": 582.4302640076187,
+    "panY": 63.96697959383556,
+    "scale": 0.16437155840000012
+  }
+}
