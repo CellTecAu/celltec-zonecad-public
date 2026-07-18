@@ -1,17 +1,17 @@
 // ZoneCAD — data model factories and constants
 
 export const POST_PROFILE = {
-  aluminium: { w: 86, h: 86 },            // 86×86 T-slot extrusion
-  steel:     { w: 75, h: 75, wall: 3 },   // 75×3 SHS
-  z65:       { w: 65, h: 65, wall: 2 },   // Z65 range — 65×65×2.0 SHS
+  aluminium: { w: 86, h: 86 },              // 86×86 T-slot extrusion
+  steel:     { w: 75, h: 75, wall: 5 },     // 75×75×5 SHS (post.py steel weldment)
+  z65:       { w: 65, h: 65, wall: 2.5 },   // Z65 range — 65×65×2.5 SHS (post.py Z65)
 };
 
 export const FOOTPLATE = {
   FPM4: { w: 180, h: 180, holes: 4, offsetX:  0, offsetY:   0 },
   FPM2: { w: 100, h: 180, holes: 2, offsetX:  0, offsetY:   0 }, // portrait 100×180
-  FPC:  { w: 180, h: 180, holes: 3, offsetX: 43, offsetY: -43 }, // post at upper-left of plate
-  FPO:  { w: 180, h: 180, holes: 4, offsetX: 43, offsetY:   0 }, // post offset right only
-  FPZ:  { w: 150, h: 150, holes: 4, offsetX:  0, offsetY:   0, holeDia: 12 }, // Z65 baseplate — GUESSTIMATE, confirm dims/holes
+  FPC:  { w: 180, h: 180, holes: 3, offsetX: 43, offsetY: -43, holeDia: 14 }, // post at upper-left of plate; anchors Ø14
+  FPO:  { w: 180, h: 180, holes: 4, offsetX:  0, offsetY: -43 }, // post offset −Y (post.py POST_OFFSET FPO = (0,−43))
+  FPZ:  { w: 75,  h: 180, holes: 2, offsetX:  0, offsetY:   0, holeDia: 14 }, // Z65 integral welded flat foot 75×180×8, 2×D14 (post.py:173,198)
 };
 
 export const HOLE_INSET = 20;     // mm from plate edge to bolt hole centre (r=6.5 → Ø13mm)
@@ -22,8 +22,26 @@ export const HOLE_DIA   = 13;     // mm, Ø13
 // so opposing pins sit 105 mm across the post.
 export const BRACKET_CLEARANCE = { aluminium: 19.5, steel: 24.5, z65: 20 };
 export const PANEL_FRAME_SHS   = { w: 25, t: 1.6 };
-export const HINGE_PIN_OD      = 17; // mm
-export const FLOOR_CLEARANCE   = 175; // mm default
+export const HINGE_PIN_OD      = 20; // mm — PB spigot into the 25 SHS bore (bay.py)
+
+// NOTE: FLOOR_CLEARANCE is the post-top → panel-top DROP (175 under a 2000 post yields
+// the correct 1825 panel top), NOT the ground gap. The true panel-bottom → floor gap
+// varies by span kind — see GROUND_CLEARANCE below.
+export const FLOOR_CLEARANCE   = 175; // mm default (post-top drop)
+
+// True ground clearance (panel-bottom → floor) by span kind, per zoneforge:
+// fence bays 100 (bay.py), hinged doors 170 (door.py), sliders/cantilever ~174 (slider.py).
+export const GROUND_CLEARANCE  = {
+  panel:          100,
+  gap:            100,
+  hingedDoor:     170,
+  swingGate:      170,
+  slidingDoor:    174,
+  cantileverGate: 174,
+};
+export function groundClearance(spanKind) {
+  return GROUND_CLEARANCE[spanKind] ?? GROUND_CLEARANCE.panel;
+}
 
 // Bump when default settings change in a way every existing user should pick up.
 // migrateSettings() applies a one-time reset (currently: grid snap → off) for any
@@ -88,27 +106,44 @@ export function migrateSettings(doc) {
 
 export function createPost(x, y, opts = {}) {
   const bollard = opts.kind === 'bollard';
+  const nb      = opts.nb ?? 100;                        // NB bollard size: 65 | 100 | 150
   const p = {
     id:                  uid('p'),
     type:                'post',
     x, y,
     material:            opts.material             ?? 'aluminium',
-    heightMm:            opts.heightMm             ?? (bollard ? 1000 : 2000),
+    heightMm:            opts.heightMm             ?? (bollard ? (NB[nb]?.stdH ?? 1000) : 2000),
     footplate:           opts.footplate            ?? 'FPM4',
     footplateRotationDeg: opts.footplateRotationDeg ?? 0,
   };
-  if (bollard) p.kind = 'bollard'; // absent = ordinary square post
+  if (bollard) { p.kind = 'bollard'; p.nb = nb; } // absent = ordinary square post
   return p;
 }
 
-/** Bollard: circular post, no spans, constrains like any post. Dimensions in mm. */
+/**
+ * NB bollard family (bollard.py). Each entry: NB-nominal steel pipe on a SQUARE welded
+ * baseplate — 4 anchor holes inset from the plate edge + a centre hole, and a rolled cap
+ * disc overhanging the pipe OD. Keyed by NB nominal bore (65 | 100 | 150).
+ */
+export const NB = {
+  65:  { od: 76.1,  wall: 3.6, plate: 200, plateT: 10, anchorDia: 18, anchorInset: 30, centreDia: 20, capOverhang: 14, stdH: 900  },
+  100: { od: 114.3, wall: 4.5, plate: 250, plateT: 10, anchorDia: 18, anchorInset: 30, centreDia: 20, capOverhang: 14, stdH: 1000 },
+  150: { od: 168.3, wall: 4.9, plate: 300, plateT: 10, anchorDia: 18, anchorInset: 30, centreDia: 20, capOverhang: 14, stdH: 1200 },
+};
+
+/**
+ * Legacy alias — NB100 exposed under the old single-`BOLLARD` field names so modules that
+ * still read BOLLARD.{od,wall,plateOd,holes,holeDia,pcd} keep working. New code should read
+ * the NB table above (square plates, D18 anchors @ inset 30, centre D20).
+ */
 export const BOLLARD = {
-  od:      165,   // post CHS outer diameter (165 × 3.2 wall, welded cap)
-  wall:    3.2,
-  plateOd: 220,   // circular baseplate OD
+  ...NB[100],
+  od:      NB[100].od,
+  wall:    NB[100].wall,
+  plateOd: NB[100].plate,                       // square plate size, reused where a plate radius is needed
   holes:   4,
-  holeDia: 17,
-  pcd:     192.5, // hole pitch circle — midway between post OD and plate OD: (165 + 220) / 2
+  holeDia: NB[100].anchorDia,                    // Ø18 anchors
+  pcd:     NB[100].plate - 2 * NB[100].anchorInset, // 190 — square anchor spacing (edge inset 30)
 };
 
 export function isBollard(o) {

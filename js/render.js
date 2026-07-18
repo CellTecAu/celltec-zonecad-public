@@ -1,6 +1,6 @@
 // ZoneCAD rendering pipeline — single canvas, immediate-mode
 
-import { layoutMm, postProfile, FOOTPLATE, HOLE_INSET, HOLE_DIA, PANEL_FRAME_SHS, BRACKET_CLEARANCE, modelToCanvas, fmtLen, dimLineOffset, angleLabelAnchor, buildPostMap, normDeg, tieEdgePoint, isBollard, BOLLARD } from './model.js';
+import { layoutMm, postProfile, FOOTPLATE, HOLE_INSET, HOLE_DIA, PANEL_FRAME_SHS, BRACKET_CLEARANCE, modelToCanvas, fmtLen, dimLineOffset, angleLabelAnchor, buildPostMap, normDeg, tieEdgePoint, isBollard, BOLLARD, NB } from './model.js';
 import { rotHandlePos } from './hit.js';
 import { spanHinges, postPivotPoints, doorHingePositions, ghostPostCenters, dimensionSegments, autoFaceKey, panelConfig, slidingLeafLine, SLIDING_DIM_OFFSET } from './spans.js';
 import { getActiveTool } from './interaction.js';
@@ -629,34 +629,39 @@ export function drawPost(ctx, post, scale, selected = false, tint = null) {
   ctx.restore();
 }
 
-/** Bollard: circular plate with bolt holes on the BOLLARD-spec PCD, 165×3.2 CHS post, welded cap. */
+/** Bollard: SQUARE welded baseplate (4 anchors inset 30 + centre hole), NB pipe OD per size, welded cap. */
 function drawBollard(ctx, post, scale, selected) {
   const px = 1 / scale;
-  const plateR = BOLLARD.plateOd / 2;
-  const postR  = BOLLARD.od / 2;
-  const wallR  = postR - BOLLARD.wall;
+  const nb = NB[post.nb] ?? NB[100];
+  const half   = nb.plate / 2;                 // half plate side (square)
+  const postR  = nb.od / 2;
+  const wallR  = postR - nb.wall;
+  const a      = half - nb.anchorInset;        // anchor centre from plate centre
 
   ctx.save();
   ctx.translate(post.x, post.y);
-  ctx.rotate(-post.footplateRotationDeg * Math.PI / 180); // rotates the hole pattern
+  ctx.rotate(-post.footplateRotationDeg * Math.PI / 180); // rotates the plate + hole pattern
 
   // Selection glow
   if (selected) {
     ctx.fillStyle = 'rgba(240,165,0,0.18)';
-    ctx.beginPath(); ctx.arc(0, 0, plateR + 10 * px, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(-half - 10 * px, -half - 10 * px, nb.plate + 20 * px, nb.plate + 20 * px);
   }
 
-  // Baseplate + bolt holes (holes at 45° offsets so the pattern reads like FPM4 corners)
+  // Square baseplate
   ctx.strokeStyle = selected ? COLORS.selection : COLORS.postOutline;
   ctx.lineWidth   = px;
-  ctx.beginPath(); ctx.arc(0, 0, plateR, 0, Math.PI * 2); ctx.stroke();
-  const holeR = BOLLARD.holeDia / 2, pcdR = BOLLARD.pcd / 2;
-  for (let k = 0; k < BOLLARD.holes; k++) {
-    const a = (Math.PI / 4) + k * (Math.PI / 2);
-    ctx.beginPath(); ctx.arc(Math.cos(a) * pcdR, Math.sin(a) * pcdR, holeR, 0, Math.PI * 2); ctx.stroke();
-  }
+  ctx.strokeRect(-half, -half, nb.plate, nb.plate);
 
-  // CHS post: filled outer circle + inner wall circle; light cap cross for the welded cap
+  // 4 anchor holes inset from the edges + centre hole
+  ctx.fillStyle = COLORS.layoutFill;
+  const anchorR = nb.anchorDia / 2, centreR = nb.centreDia / 2;
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+    ctx.beginPath(); ctx.arc(sx * a, sy * a, anchorR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(0, 0, centreR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  // NB pipe: filled outer circle + inner wall circle; light cap cross for the welded cap
   ctx.fillStyle   = COLORS.postSteel;
   ctx.strokeStyle = selected ? COLORS.selection : COLORS.postOutline;
   ctx.lineWidth   = selected ? 2 * px : px;
@@ -667,14 +672,6 @@ function drawBollard(ctx, post, scale, selected) {
   ctx.beginPath();
   ctx.moveTo(-cx, -cx); ctx.lineTo(cx, cx);
   ctx.moveTo(-cx, cx);  ctx.lineTo(cx, -cx);
-  ctx.stroke();
-
-  // Centre datum cross
-  const cs = 6 * px;
-  ctx.strokeStyle = COLORS.postOutline;
-  ctx.beginPath();
-  ctx.moveTo(-cs, 0); ctx.lineTo(cs, 0);
-  ctx.moveTo(0, -cs); ctx.lineTo(0, cs);
   ctx.stroke();
 
   ctx.restore();
@@ -844,10 +841,10 @@ function footplateHoles(kind, fp) {
   const hw = fp.w / 2, hh = fp.h / 2, i = HOLE_INSET;
   const nx = ox - hw + i, px = ox + hw - i; // left / right column x
   const ny = oy - hh + i, py = oy + hh - i; // bottom / top row y
-  if (kind === 'FPM4' || kind === 'FPZ') return [[nx,ny],[px,ny],[nx,py],[px,py]]; // 4 corners
+  if (kind === 'FPM4') return [[nx,ny],[px,ny],[nx,py],[px,py]]; // 4 corners
   if (kind === 'FPC')  return [[px,ny],[nx,ny],[px,py]]; // skip (nx,py) — nearest corner to post
   if (kind === 'FPO')  return [[nx,ny],[px,ny],[nx,py],[px,py]];
-  if (kind === 'FPM2') return [[ox, oy - hh + i], [ox, oy + hh - i]]; // centreline of long edges
+  if (kind === 'FPM2' || kind === 'FPZ') return [[ox, oy - hh + i], [ox, oy + hh - i]]; // 2 holes on the long centreline
   return [];
 }
 
@@ -1119,6 +1116,25 @@ function drawDoorLeaf(ctx, span, posts, hA, hB, scale, col, selected) {
   ctx.beginPath();
   ctx.arc(openTip.x, openTip.y, handleR, 0, 2 * Math.PI);
   ctx.fill();
+
+  // ADB — adjustable door brace: a bar tying the two posts together across the doorway
+  // (fitted in lieu of the post caps). Drawn only when explicitly enabled on this door.
+  if (kp.adb) {
+    const bnx = -dy / len, bny = dx / len;   // perpendicular to the closed pin-span line
+    const off = 30;                           // sit the brace just off the opening line
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth   = 2 * px;
+    ctx.beginPath();
+    ctx.moveTo(hA.x + bnx * off, hA.y + bny * off);
+    ctx.lineTo(hB.x + bnx * off, hB.y + bny * off);
+    ctx.stroke();
+    // short returns to the pins so it reads as a fitted brace over the opening
+    ctx.lineWidth = px;
+    ctx.beginPath();
+    ctx.moveTo(hA.x, hA.y); ctx.lineTo(hA.x + bnx * off, hA.y + bny * off);
+    ctx.moveTo(hB.x, hB.y); ctx.lineTo(hB.x + bnx * off, hB.y + bny * off);
+    ctx.stroke();
+  }
 
   ctx.lineCap = 'butt';
 }
@@ -1638,13 +1654,27 @@ export function drawAccessory(ctx, acc, posts, scale, selected = false) {
   if (acc.accKind === 'bollard') {
     const x = acc.x ?? posts[acc.host]?.x ?? 0;
     const y = acc.y ?? posts[acc.host]?.y ?? 0;
+    const nb = NB[acc.nb] ?? NB[100];
+    const half = nb.plate / 2, postR = nb.od / 2, a = half - nb.anchorInset;
+
+    ctx.save();
+    ctx.translate(x, y);
     ctx.strokeStyle = selected ? COLORS.selection : COLORS.postOutline;
-    ctx.lineWidth   = 4.5 * px;
-    ctx.fillStyle   = 'rgba(180,180,180,0.3)';
-    ctx.beginPath();
-    ctx.arc(x, y, 82, 0, Math.PI * 2); // 164 OD / 2
-    ctx.fill();
-    ctx.stroke();
+    ctx.lineWidth   = px;
+
+    // Square baseplate + 4 anchors inset 30 + centre hole
+    ctx.strokeRect(-half, -half, nb.plate, nb.plate);
+    ctx.fillStyle = COLORS.layoutFill;
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+      ctx.beginPath(); ctx.arc(sx * a, sy * a, nb.anchorDia / 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(0, 0, nb.centreDia / 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    // NB pipe OD
+    ctx.fillStyle = 'rgba(180,180,180,0.3)';
+    ctx.beginPath(); ctx.arc(0, 0, postR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    ctx.restore();
   }
 }
 

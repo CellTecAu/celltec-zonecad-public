@@ -157,11 +157,11 @@ export function setupBom(store) {
           <td>${fmt(r.runMm)} × ${fmt(r.heightMm)}</td>
           <td>2 off ${fmt(r.heightMm)} 25×1.6 SHS</td>
           <td>3 off ${fmt(hLen)} 25×1.6 SHS</td>
-          <td>${fmtArea(area)} side&nbsp;${r.meshSide}</td>
+          <td>${fmtArea(area)} weldmesh 3.0&nbsp;mm wire, 25×25 grid, 28&nbsp;mm overall — side&nbsp;${r.meshSide}</td>
           <td class="bom-qty">${g.length}</td>
         </tr>`;
         csvRow(`${Math.round(r.runMm)}x${Math.round(r.heightMm)}`, `2 off ${Math.round(r.heightMm)} 25x1.6 SHS`,
-               `3 off ${Math.round(hLen)} 25x1.6 SHS`, `${area.toFixed(2)} m2 side ${r.meshSide}`, g.length);
+               `3 off ${Math.round(hLen)} 25x1.6 SHS`, `${area.toFixed(2)} m2 weldmesh 3.0mm wire 25x25 grid 28mm overall side ${r.meshSide}`, g.length);
       }
       csv.push('');
 
@@ -183,6 +183,22 @@ export function setupBom(store) {
           </table>
           ${ghostNote}
         </details>`);
+    }
+
+    // ── Door hardware — ADB adjustable door brace (one per opted-in door) ─────────
+    const adbCount = spans.filter(s =>
+      (s.spanKind === 'hingedDoor' || s.spanKind === 'swingGate') && s.kindProps?.adb === true
+    ).length;
+    if (adbCount) {
+      const adbDesc = 'ADB — adjustable door brace (25 SHS span + fixed leg + movable plate, 8× M8×12 BHCS, black)';
+      csv.push('Door Hardware'); csvRow('Item', 'Qty');
+      csvRow(adbDesc, adbCount);
+      csv.push('');
+      parts.push(section('Door Hardware', adbCount, `
+        <table class="bom-table">
+          <thead><tr>${ths('Item', 'Qty')}</tr></thead>
+          <tbody><tr><td>${adbDesc}</td><td class="bom-qty">${adbCount}</td></tr></tbody>
+        </table>`));
     }
 
     // ── Spans (logical, collapsed) ────────────────────────────────────────────────
