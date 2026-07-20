@@ -465,6 +465,49 @@ export function ghostPostCenters(span, postMap, cfg = PANEL_DEFAULTS) {
   return lay.cds.map(d => ({ x: lay.hA.x + lay.ux * d, y: lay.hA.y + lay.uy * d, rotDeg: lay.rotDeg }));
 }
 
+// ─── Handrail (HRK / HRSDK) ──────────────────────────────────────────────────
+
+/**
+ * HRK handrail kit. Two SHS rails bracketed between short (~1 m) posts — an
+ * upper 50×50×1.6 whose top is flush with the post top, and a lower 30×30×1.6
+ * at a fixed height above the FLOOR (handrail heights are absolute, so the
+ * lower rail does not follow the post top).
+ *
+ * Cut lengths are the bay (post c-c) minus a per-rail gap, read from the
+ * stocked components: a 2000 bay takes a 1935 upper and a 1942 lower.
+ * `HRK-NNNN` names the BAY, not the post height.
+ */
+export const HANDRAIL = {
+  upper:      { w: 50, wall: 1.6, cutGap: 65 },  // 50 SHS, cut = bay − 65
+  lower:      { w: 30, wall: 1.6, cutGap: 58 },  // 30 SHS, cut = bay − 58
+  lowerRailZ: 465.75,   // lower rail centreline above floor (absolute)
+  postHeight: 1000,     // handrail guidelines are written around 1 m
+  gateLeaf:   { w: 30, wall: 1.6, heightMm: 400, gapMm: 100 }, // HRSDK: 30 box, leaf = c-c − 100
+};
+
+/** True for the handrail span kinds (rails/gate rather than mesh infill). */
+export function isHandrail(kind) {
+  return kind === 'handrail' || kind === 'handrailGate';
+}
+
+/**
+ * Cut list for one HRK handrail bay. Unlike a panel, a handrail's members are
+ * measured off the post CENTRES (the brackets bolt to the post faces), so this
+ * takes the c-c distance rather than the pin-line run.
+ */
+export function handrailCutList(span, postMap) {
+  const pA = postMap[span.postA], pB = postMap[span.postB];
+  if (!pA || !pB) return null;
+  const c2c = Math.round(Math.hypot(pB.x - pA.x, pB.y - pA.y));
+  return {
+    bayMm: c2c,
+    upper: { qty: 1, lengthMm: c2c - HANDRAIL.upper.cutGap, section: '50×50×1.6 SHS' },
+    lower: { qty: 1, lengthMm: c2c - HANDRAIL.lower.cutGap, section: '30×30×1.6 SHS' },
+    brackets: { uhr: 2, lhr: 2 },
+    postHeightMm: Math.min(pA.heightMm, pB.heightMm),
+  };
+}
+
 export function panelCutList(span, postMap) {
   const run    = spanRunLength(span, postMap);
   const height = spanHeight(span, postMap);

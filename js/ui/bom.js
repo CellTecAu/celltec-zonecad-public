@@ -1,6 +1,6 @@
 // Bill of Materials — live parts worksheet with sortable columns + panel cut list
 
-import { spanRunLength, spanHeight, ghostPanelSections, ghostPostCenters, panelConfig, spanHinges } from '../spans.js';
+import { spanRunLength, spanHeight, ghostPanelSections, ghostPostCenters, panelConfig, spanHinges, handrailCutList, HANDRAIL } from '../spans.js';
 import { fmtLen, BOLLARD } from '../model.js';
 
 // Per-table sort state, preserved across re-renders (the BOM re-renders on every store
@@ -15,6 +15,7 @@ const sortStates = {
 const KIND_LABEL = {
   panel: 'Panel', hingedDoor: 'Hinged door', swingGate: 'Swing gate',
   slidingDoor: 'Sliding door', cantileverGate: 'Cantilever gate', gap: 'Gap',
+  handrail: 'Handrail (HRK)', handrailGate: 'Handrail gate (HRSDK)',
 };
 
 export function setupBom(store) {
@@ -157,11 +158,11 @@ export function setupBom(store) {
           <td>${fmt(r.runMm)} × ${fmt(r.heightMm)}</td>
           <td>2 off ${fmt(r.heightMm)} 25×1.6 SHS</td>
           <td>3 off ${fmt(hLen)} 25×1.6 SHS</td>
-          <td>${fmtArea(area)} weldmesh 3.0&nbsp;mm wire, 25×25 grid, 28&nbsp;mm overall — side&nbsp;${r.meshSide}</td>
+          <td>${fmtArea(area)} side&nbsp;${r.meshSide}</td>
           <td class="bom-qty">${g.length}</td>
         </tr>`;
         csvRow(`${Math.round(r.runMm)}x${Math.round(r.heightMm)}`, `2 off ${Math.round(r.heightMm)} 25x1.6 SHS`,
-               `3 off ${Math.round(hLen)} 25x1.6 SHS`, `${area.toFixed(2)} m2 weldmesh 3.0mm wire 25x25 grid 28mm overall side ${r.meshSide}`, g.length);
+               `3 off ${Math.round(hLen)} 25x1.6 SHS`, `${area.toFixed(2)} m2 side ${r.meshSide}`, g.length);
       }
       csv.push('');
 
@@ -183,22 +184,6 @@ export function setupBom(store) {
           </table>
           ${ghostNote}
         </details>`);
-    }
-
-    // ── Door hardware — ADB adjustable door brace (one per opted-in door) ─────────
-    const adbCount = spans.filter(s =>
-      (s.spanKind === 'hingedDoor' || s.spanKind === 'swingGate') && s.kindProps?.adb === true
-    ).length;
-    if (adbCount) {
-      const adbDesc = 'ADB — adjustable door brace (25 SHS span + fixed leg + movable plate, 8× M8×12 BHCS, black)';
-      csv.push('Door Hardware'); csvRow('Item', 'Qty');
-      csvRow(adbDesc, adbCount);
-      csv.push('');
-      parts.push(section('Door Hardware', adbCount, `
-        <table class="bom-table">
-          <thead><tr>${ths('Item', 'Qty')}</tr></thead>
-          <tbody><tr><td>${adbDesc}</td><td class="bom-qty">${adbCount}</td></tr></tbody>
-        </table>`));
     }
 
     // ── Spans (logical, collapsed) ────────────────────────────────────────────────
@@ -229,6 +214,79 @@ export function setupBom(store) {
           <summary>Spans — post-to-post links (${spans.length})</summary>
           ${html}
         </details>`);
+    }
+
+    // ── Handrail (HRK) — two SHS rails + UHR/LHR brackets per bay ────────────────
+    // Rails are cut off the post CENTRES (brackets bolt to the post faces), not
+    // the pin line, so this uses handrailCutList rather than the panel run.
+    const handrailRows = [];
+    for (const s of spans) {
+      if (s.spanKind !== 'handrail') continue;
+      const cl = handrailCutList(s, postMap);
+      if (cl) handrailRows.push(cl);
+    }
+    if (handrailRows.length) {
+      const hgroups = groupBy(handrailRows, r => `${r.bayMm}|${r.postHeightMm}`);
+      csv.push('Handrail (HRK)');
+      csvRow('Bay c-c (mm)', 'Post height (mm)', 'Upper rail 50 SHS (mm)', 'Lower rail 30 SHS (mm)', 'UHR', 'LHR', 'Qty');
+      let hrRows = '';
+      for (const g of hgroups.values()) {
+        const r = g[0];
+        hrRows += `<tr>
+          <td>${fmt(r.bayMm)}</td>
+          <td>${fmt(r.postHeightMm)}</td>
+          <td>${fmt(r.upper.lengthMm)} — ${r.upper.section}</td>
+          <td>${fmt(r.lower.lengthMm)} — ${r.lower.section}</td>
+          <td>2 UHR · 2 LHR</td>
+          <td class="bom-qty">${g.length}</td>
+        </tr>`;
+        csvRow(r.bayMm, r.postHeightMm, r.upper.lengthMm, r.lower.lengthMm, 2, 2, g.length);
+      }
+      csv.push('');
+      parts.push(section('Handrail (HRK)', handrailRows.length, `
+        <table class="bom-table">
+          <thead><tr>${ths('Bay c-c', 'Post H', 'Upper rail', 'Lower rail', 'Brackets', 'Qty')}</tr></thead>
+          <tbody>${hrRows}</tbody>
+        </table>`));
+    }
+
+    // ── Handrail gates (HRSDK) — 30 box leaf, dia-30 bush hinges, HDS stop ───────
+    const hrGateRows = [];
+    for (const s of spans) {
+      if (s.spanKind !== 'handrailGate') continue;
+      const pA = postMap[s.postA], pB = postMap[s.postB];
+      if (!pA || !pB) continue;
+      const c2c = Math.round(Math.hypot(pB.x - pA.x, pB.y - pA.y));
+      hrGateRows.push({
+        c2cMm: c2c,
+        leafMm: c2c - HANDRAIL.gateLeaf.gapMm,   // leaf = c-c − 100, as PNLD
+        leafHMm: HANDRAIL.gateLeaf.heightMm,
+        selfClosing: !!(s.kindProps?.selfClosing),
+      });
+    }
+    if (hrGateRows.length) {
+      const ggroups = groupBy(hrGateRows, r => `${r.c2cMm}|${r.leafMm}|${r.selfClosing}`);
+      csv.push('Handrail Gates (HRSDK)');
+      csvRow('Opening c-c (mm)', 'Leaf W (mm)', 'Leaf H (mm)', 'Self closing', 'Hinges', 'Stop', 'Qty');
+      let ggRows = '';
+      for (const g of ggroups.values()) {
+        const r = g[0];
+        ggRows += `<tr>
+          <td>${fmt(r.c2cMm)}</td>
+          <td>${fmt(r.leafMm)} × ${fmt(r.leafHMm)} — 30×30×1.6 SHS</td>
+          <td>${r.selfClosing ? 'yes (−SC)' : 'no'}</td>
+          <td>2 × HBK, Ø30 bush</td>
+          <td>1 × HDS</td>
+          <td class="bom-qty">${g.length}</td>
+        </tr>`;
+        csvRow(r.c2cMm, r.leafMm, r.leafHMm, r.selfClosing ? 'yes' : 'no', 2, 1, g.length);
+      }
+      csv.push('');
+      parts.push(section('Handrail Gates (HRSDK)', hrGateRows.length, `
+        <table class="bom-table">
+          <thead><tr>${ths('Opening', 'Leaf (W×H)', 'Self closing', 'Hinges', 'Stop', 'Qty')}</tr></thead>
+          <tbody>${ggRows}</tbody>
+        </table>`));
     }
 
     // ── Cantilever gates — beam + leaf + rollers + catcher + endstop ──────────────

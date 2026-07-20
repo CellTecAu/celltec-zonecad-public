@@ -4,7 +4,7 @@
 // hinged-door / swing-gate leaves, sliding doors and cantilever gates.
 //
 // Layers: LAYOUT, POSTS, GHOSTS, BRACKETS, FENCE, GATES, GAPS, ZONES, LABELS, DIMS.
-import { spanHinges, ghostPostCenters, doorHingePositions, autoFaceKey, panelConfig, dimensionSegments } from './spans.js';
+import { spanHinges, ghostPostCenters, doorHingePositions, autoFaceKey, panelConfig, dimensionSegments, HANDRAIL } from './spans.js';
 import { PANEL_FRAME_SHS, FOOTPLATE, HOLE_DIA, HOLE_INSET, BRACKET_CLEARANCE, buildPostMap, postProfile, BOLLARD } from './model.js';
 
 // ACI colour per layer, for the LAYER table.
@@ -256,8 +256,21 @@ export function exportDxf(doc) {
       const pA = postMap[o.postA], pB = postMap[o.postB];
 
       object('SPAN_' + o.id, o.spanKind === 'gap' ? 'GAPS'
-        : (o.spanKind === 'panel' ? 'FENCE' : 'GATES'), () => {
+        : (o.spanKind === 'panel' || o.spanKind === 'handrail' ? 'FENCE' : 'GATES'), () => {
         if (o.spanKind === 'slidingDoor') { eSlidingDoor(o, hA, hB, dx, dy, len, nx, ny, postMap, eLine, FOOTPLATE); return; }
+
+        // HRK handrail — in plan the two rails stack, so the 50 SHS upper is the
+        // footprint. Drawn on FENCE; the rails' own cut lengths are in the BOM.
+        if (o.spanKind === 'handrail') {
+          const rh = HANDRAIL.upper.w / 2;
+          eLine(hA.x + nx * rh, hA.y + ny * rh, hB.x + nx * rh, hB.y + ny * rh, 'FENCE');
+          eLine(hA.x - nx * rh, hA.y - ny * rh, hB.x - nx * rh, hB.y - ny * rh, 'FENCE');
+          eLine(hA.x + nx * rh, hA.y + ny * rh, hA.x - nx * rh, hA.y - ny * rh, 'FENCE');
+          eLine(hB.x + nx * rh, hB.y + ny * rh, hB.x - nx * rh, hB.y - ny * rh, 'FENCE');
+          return;
+        }
+
+        if (o.spanKind === 'handrailGate') { eDoorLeaf(o, hA, hB, postMap); return; }
         if (o.spanKind === 'cantileverGate') { eCantileverGate(o, hA, hB, dx, dy, len, nx, ny, postMap, eLine, FOOTPLATE); return; }
 
         if (o.spanKind === 'hingedDoor' || o.spanKind === 'swingGate') {

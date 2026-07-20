@@ -67,18 +67,6 @@ export function setupProperties(store, getSelection) {
     });
   });
 
-  // ADB (adjustable door brace) toggle — injected into the door fieldset so it lives
-  // inside formSpan (its `change` bubbles to the form's applySpanForm listener).
-  const doorFields = document.getElementById('props-door-fields');
-  if (doorFields && !doorFields.querySelector('input[name="adb"]')) {
-    const row = document.createElement('div');
-    row.className = 'form-row';
-    row.innerHTML =
-      '<label for="d-adb">ADB (adjustable door brace)</label>' +
-      '<input id="d-adb" type="checkbox" name="adb">';
-    doorFields.appendChild(row);
-  }
-
   // Constraint add buttons — handlers are re-bound each time populateConstraints
   // runs so the postId is always captured from the current dialog state, not
   // re-queried from selection (which can be stale while a modal is open).
@@ -125,12 +113,10 @@ export function setupProperties(store, getSelection) {
         const angle      = parseFloat(formSpan.doorOpenAngle.value);
         const activeBtn  = document.querySelector('#d-hinge-pos .hinge-pos-btn.active');
         const hingePos   = activeBtn ? activeBtn.dataset.pos : null;
-        const adb        = formSpan.adb ? formSpan.adb.checked : false;
         targets.forEach(s => {
           if (!s.kindProps) s.kindProps = {};
           if (hingePos)       s.kindProps.hingePos     = hingePos;
           if (!isNaN(angle))  s.kindProps.openAngleDeg = angle;
-          s.kindProps.adb = adb;
         });
       }
       if (kind === 'slidingDoor') {
@@ -301,8 +287,6 @@ export function setupProperties(store, getSelection) {
         btn.classList.toggle('active', btn.dataset.pos === resolvedPos);
       });
       setNumVal(formSpan.doorOpenAngle, uniqKp(spans, 'openAngleDeg') || '90');
-      // ADB checkbox: checked only when every selected door has adb === true.
-      if (formSpan.adb) formSpan.adb.checked = uniqKp(spans, 'adb') === 'true';
     }
     if (isSlidingDoor) {
       const kpSlideEnd  = uniqKp(spans, 'slideEnd');
