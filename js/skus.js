@@ -41,12 +41,13 @@ export const PB_CODE = { aluminium: 'PB', z65: 'Z65-PB', steel: 'PBS' };
 
 /** Hardware-summary descriptions, keyed by code. */
 export const HARDWARE_DESC = {
-  'PB':     'Panel bracket — T-slot, alloy post (2 per panel end)',
-  'Z65-PB': 'Panel bracket — Z65 keyhole mount (2 per panel end)',
-  'PBS':    'Panel bracket — steel post (2 per panel end)',
-  'HDK':    'Hinge door kit (1 per doorway)',
-  'TB1275': 'Through-bolt M12×75 (1 per footplate anchor hole)',
-  'EC-PST': 'Post end cap — alloy 86×86 (1 per post)',
-  'CSS825': 'M8×25 CSK socket screw — footplate to post (4 per alloy post)',
-  'TBC':    'Bollard baseplate anchor (product code to confirm)',
+  'PB':         'Panel bracket — T-slot, alloy post (2 per panel end)',
+  'Z65-PB':     'Panel bracket — Z65 keyhole mount (2 per panel end)',
+  'PBS':        'Panel bracket — steel post (2 per panel end)',
+  'HDK':        'Hinge door kit (1 per doorway)',
+  'TB1275':     'Through-bolt M12×75 (1 per footplate anchor hole)',
+  'TB1675':     'Through-bolt M16×75 (1 per bollard baseplate hole)',
+  'EC-PST':     'Post end cap — alloy 86×86 (1 per post)',
+  'EC-PST-Z65': 'Post end cap — Z65 moulded (1 per post)',
+  'CSS825':     'M8×25 CSK socket screw — footplate to post (4 per alloy post)',
 };

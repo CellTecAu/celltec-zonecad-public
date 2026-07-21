@@ -197,9 +197,9 @@ export function setupBom(store) {
     //                  material; interior (ghost) ends inherit post A, as everywhere else.
     //   HDK            1 per hinged-door / swing-gate doorway.
     //   TB1275         1 per footplate anchor hole (FOOTPLATE[..].holes), all non-bollard
-    //                  posts incl. ghosts. Bollard anchors are Ø18 — a separate line (TBC).
-    //   EC-PST/CSS825  alloy posts only: Z65's foot is welded + cap moulded, steel is a
-    //                  weldment.
+    //                  posts incl. ghosts. Bollard baseplates take the M16 TB1675 instead.
+    //   EC-PST/CSS825  alloy posts; Z65 posts get the moulded EC-PST-Z65 cap only (foot is
+    //                  welded — no CSS825); steel posts are weldments, nothing counted.
     {
       const hardware = new Map(); // code → qty
       const add = (code, qty) => { if (qty > 0) hardware.set(code, (hardware.get(code) ?? 0) + qty); };
@@ -217,9 +217,10 @@ export function setupBom(store) {
       }
 
       for (const p of allPosts) {
-        if (p.kind === 'bollard') { add('TBC', BOLLARD.holes); continue; }
+        if (p.kind === 'bollard') { add('TB1675', BOLLARD.holes); continue; }
         add('TB1275', FOOTPLATE[p.footplate]?.holes ?? 0);
         if (p.material === 'aluminium') { add('EC-PST', 1); add('CSS825', 4); }
+        else if (p.material === 'z65') add('EC-PST-Z65', 1);
       }
 
       if (hardware.size) {
