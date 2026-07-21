@@ -5,7 +5,8 @@
 import { pickObject, pickHandle, rotHandlePos, objectsInMarquee, pickSpanEndpoint, pickDoorHinge, pickDimensionLine, setPickBoost, getPickBoost } from './hit.js';
 import { getDimLabelHits } from './render.js';
 import { canvasToModel, snapPoint, createZone, createPost, createSpan, createConstraint, buildPostMap, PANEL_FRAME_SHS } from './model.js';
-import { isDragBlocked, lockedAxes, validateConstraint, wouldCycle } from './constraints.js';
+import { isDragBlocked, lockedAxes, validateConstraint, wouldCycle, rotationBlockReason } from './constraints.js';
+import { showToast } from './ui/toast.js';
 import { postPivotPoints, doorHingePositions, autoFaceKey, spanHinges, PANEL_DIM_OFFSET, pinOffset, slidingLeafLine } from './spans.js';
 import { findObjectSnap } from './snaps.js';
 import { vectorizeStroke, assembleTrace } from './trace.js';
@@ -54,6 +55,14 @@ export function setupInteraction(canvas, store, getSelection, setSelection, onMa
   let rotSnapped    = false; // history snapshot taken for the current rotate drag
   let rotStartAngle = 0;  // angle (deg) from post centre to cursor at drag start
   let rotStartDeg   = 0;  // post's footplateRotationDeg at drag start
+
+  // Group-rotate drag (rotate tool) — rotate the whole selection about its centroid
+  let grpPivot      = { x: 0, y: 0 };
+  let grpStartAngle = 0;         // deg, pivot → cursor at drag start
+  let grpStart      = new Map(); // id → original geometry at drag start
+  let grpAngleC     = new Map(); // angle-constraint id → original valueDeg
+  let grpSnapped    = false;     // history snapshot taken
+  let grpLastDelta  = 0;         // last applied delta (deg, 0..360)
 
   // Endpoint drag bookkeeping
   let dragEndpoint = null; // { span, endpoint: 'A'|'B' }
@@ -183,7 +192,8 @@ export function setupInteraction(canvas, store, getSelection, setSelection, onMa
     if (state === 'IDLE') { downEvt = null; activePtr = null; return; }
     // Drags that mutate the doc live saved a history snapshot at drag start —
     // undo restores it exactly. (The aborted fragment lands on the redo stack; harmless.)
-    if (state === 'MOVE_OBJ' || state === 'DRAG_DIM' || (state === 'ROTATE' && rotSnapped)) store.undo();
+    if (state === 'MOVE_OBJ' || state === 'DRAG_DIM' || (state === 'ROTATE' && rotSnapped)
+        || (state === 'ROTATE_GROUP' && grpSnapped)) store.undo();
     if (downSel) setSelection(downSel); // undo any press-time selection change
     if (state === 'MARQUEE') onMarquee(null);
     // Trace: discard only the in-flight stroke; keep already-drawn session strokes.
@@ -192,6 +202,7 @@ export function setupInteraction(canvas, store, getSelection, setSelection, onMa
     canvas.style.cursor = '';
     state = 'IDLE'; downEvt = null; downObj = null; activePtr = null;
     dragEndpoint = null; dragHinge = null; dragDim = null; downSel = null;
+    grpStart = new Map(); grpAngleC = new Map();
   }
   _cancelCurrent = cancelCurrent;
 
@@ -372,6 +383,48 @@ export function setupInteraction(canvas, store, getSelection, setSelection, onMa
       state = 'DRAG_TRACE';
       emitTraceOverlay();
       return;
+    }
+
+    // Rotate tool: with a selection, a press ANYWHERE starts a group rotation about the
+    // selection centroid — the press point only seeds the reference ray, so you can grab
+    // a comfortable lever arm. Shift-press falls through so selection edits still work;
+    // an empty selection falls through to normal click-select/marquee.
+    if (_activeTool === 'rotate' && sel.size > 0 && !e.shiftKey) {
+      const why = rotationBlockReason(sel, doc.constraints, false);
+      if (why) {
+        showToast(`Rotation blocked — ${why}. Remove the constraint or change the selection.`, 'info');
+        state = 'IDLE'; downEvt = null; activePtr = null; downSel = null;
+        return;
+      }
+      grpStart = new Map();
+      let cx = 0, cy = 0, n = 0;
+      for (const o of doc.objects) {
+        if (!sel.has(o.id)) continue;
+        if (o.type === 'dim') {
+          grpStart.set(o.id, { isDim: true, x0: o.x0, y0: o.y0, x1: o.x1, y1: o.y1 });
+          cx += (o.x0 + o.x1) / 2; cy += (o.y0 + o.y1) / 2; n++;
+        } else if (o.type === 'post') {
+          grpStart.set(o.id, { isPost: true, x: o.x, y: o.y, rot: o.footplateRotationDeg ?? 0 });
+          cx += o.x; cy += o.y; n++;
+        } else if (o.type === 'zone' || o.type === 'label') {
+          grpStart.set(o.id, { isRectZone: o.type === 'zone' && o.shape !== 'circle',
+                               x: o.x, y: o.y, w: o.widthMm, h: o.heightMm });
+          cx += o.x; cy += o.y; n++;
+        }
+      }
+      if (n > 0) {
+        grpPivot  = { x: cx / n, y: cy / n };
+        grpAngleC = new Map();
+        for (const c of doc.constraints) {
+          if (c.kind === 'angle' && sel.has(c.child)) grpAngleC.set(c.id, c.valueDeg ?? 0);
+        }
+        const mp = modelPt(e);
+        grpStartAngle = Math.atan2(mp.y - grpPivot.y, mp.x - grpPivot.x) * 180 / Math.PI;
+        grpSnapped = false; grpLastDelta = 0;
+        state = 'ROTATE_GROUP';
+        return;
+      }
+      // nothing rotatable in the selection (e.g. spans only) — fall through to select
     }
     // The 'move' tool skips all sub-handles (hinge markers, endpoint re-face, rotation) —
     // clicks fall straight through to selecting/moving the object.
@@ -666,6 +719,50 @@ export function setupInteraction(canvas, store, getSelection, setSelection, onMa
       onMarquee({ x0: marqueeStart.x, y0: marqueeStart.y, x1: mp.x, y1: mp.y });
     }
 
+    if (state === 'ROTATE_GROUP') {
+      const mp  = modelPt(e);
+      const doc = store.getDoc();
+      const cur = Math.atan2(mp.y - grpPivot.y, mp.x - grpPivot.x) * 180 / Math.PI;
+      let delta = cur - grpStartAngle;
+      const snap = e.shiftKey ? 0 : (doc.settings.rotSnapDeg ?? 5);
+      if (snap > 0) delta = Math.round(delta / snap) * snap;
+      delta = ((delta % 360) + 360) % 360;
+      if (delta !== grpLastDelta) {
+        grpLastDelta = delta;
+        if (!grpSnapped && delta !== 0) { store.saveSnapshot(); grpSnapped = true; }
+        const quarter = delta % 90 === 0;
+        const oddQ    = quarter && delta % 180 !== 0;
+        const rad = delta * Math.PI / 180;
+        // Exact quarter-turns snap cos/sin to 0/±1 so grid coordinates stay exact.
+        const cos = quarter ? Math.round(Math.cos(rad)) : Math.cos(rad);
+        const sin = quarter ? Math.round(Math.sin(rad)) : Math.sin(rad);
+        const rot = (x, y) => ({ x: grpPivot.x + (x - grpPivot.x) * cos - (y - grpPivot.y) * sin,
+                                 y: grpPivot.y + (x - grpPivot.x) * sin + (y - grpPivot.y) * cos });
+        // Angle-constraint bearings first, so the re-solve in patchObjects uses them.
+        for (const [cid, v0] of grpAngleC) {
+          store.patchConstraint(cid, { valueDeg: ((v0 + delta) % 360 + 360) % 360 });
+        }
+        const patches = new Map();
+        for (const [id, s] of grpStart) {
+          if (s.isDim) {
+            const a = rot(s.x0, s.y0), b = rot(s.x1, s.y1);
+            patches.set(id, { x0: a.x, y0: a.y, x1: b.x, y1: b.y });
+            continue;
+          }
+          const p = rot(s.x, s.y);
+          const patch = { x: p.x, y: p.y };
+          if (s.isPost) patch.footplateRotationDeg = ((s.rot + delta) % 360 + 360) % 360;
+          // Rect zones stay axis-aligned: odd quarter-turns swap the sides, other angles
+          // just carry the centre.
+          if (s.isRectZone) { patch.widthMm = oddQ ? s.h : s.w; patch.heightMm = oddQ ? s.w : s.h; }
+          patches.set(id, patch);
+        }
+        store.patchObjects(patches);
+      }
+      if (onDragState) onDragState({ type: 'rotate', cx: grpPivot.x, cy: grpPivot.y,
+        startDeg: grpStartAngle, deltaDeg: grpLastDelta, toX: mp.x, toY: mp.y });
+    }
+
     if (state === 'ROTATE') {
       const mp  = modelPt(e);
       const doc = store.getDoc();
@@ -832,8 +929,12 @@ export function setupInteraction(canvas, store, getSelection, setSelection, onMa
       setSelection(new Set(hit.map(o => o.id)));
       onMarquee(null);
     }
+    if (state === 'ROTATE_GROUP') {
+      if (onDragState) onDragState(null); // clear the radial guide
+      grpStart = new Map(); grpAngleC = new Map();
+    }
     if (state === 'MOVE_OBJ' && onDragState) onDragState(null); // clear alignment guides
-    // MOVE_OBJ / ROTATE / DRAG_DIM: snapshot was already saved at drag start; patches are live
+    // MOVE_OBJ / ROTATE / ROTATE_GROUP / DRAG_DIM: snapshot saved at drag start; patches are live
     dragDim = null;
     state   = 'IDLE';
     downEvt = null;

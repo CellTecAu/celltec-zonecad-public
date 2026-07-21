@@ -7,7 +7,7 @@ import { setupInteraction, setActiveTool, getActiveTool, beginGrab } from './int
 import { setupGestures, runToolTap, isGestureActive } from './gestures.js';
 import { canvasToModel, modelToCanvas, snapPoint, createPost, createSpan, createLabel, createRefDimension, uid, buildPostMap, postProfile, fmtLen, normDeg, BOLLARD } from './model.js';
 import { pickObject }   from './hit.js';
-import { constraintLabel, lockedAxes, countBrokenConstraints } from './constraints.js';
+import { constraintLabel, lockedAxes, countBrokenConstraints, rotationBlockReason } from './constraints.js';
 import { setupSettings }    from './ui/settings.js';
 import { setupToolbar, warnDocProblems } from './ui/toolbar.js';
 import { setupContextMenu } from './ui/contextmenu.js';
@@ -262,21 +262,10 @@ function rotateSelectionBy(deltaDeg) {
   if (!delta) return;
   const quarterTurn = delta % 90 === 0;
   const oddQuarter  = quarterTurn && delta % 180 !== 0;
-  const halfTurn    = delta % 180 === 0;
 
   const doc = store.getDoc();
-  for (const c of doc.constraints) {
-    if (!selection.has(c.child)) continue;
-    let why = null;
-    if (c.kind === 'lock' || c.kind === 'tieEdge') {
-      why = 'a post is locked / tied to a layout edge';
-    } else if (![c.parent, c.parent2].filter(Boolean).every(r => selection.has(r))) {
-      why = 'a constraint references a post outside the selection';
-    } else if ((c.kind === 'alignH' || c.kind === 'alignV') && !quarterTurn && !halfTurn) {
-      why = 'align constraints only survive 90° steps';
-    }
-    if (why) { showToast(`Rotation blocked — ${why}. Remove the constraint or change the selection.`, 'info'); return; }
-  }
+  const why = rotationBlockReason(selection, doc.constraints, quarterTurn);
+  if (why) { showToast(`Rotation blocked — ${why}. Remove the constraint or change the selection.`, 'info'); return; }
 
   const pts = doc.objects.filter(o => selection.has(o.id)).map(objAnchor).filter(Boolean);
   if (!pts.length) return;
@@ -356,6 +345,7 @@ const statusHintEl = document.getElementById('status-hint');
 const TOOL_HINTS = {
   select:        'Right-click to add post · Middle-drag / Space-drag to pan · V=Select G=Move Q=Rotate R=Measure · F=Fit',
   move:          'Move: drag posts freely — object snapping off, align guides + 100 mm spacing snap on',
+  rotate:        'Rotate: with a selection, drag anywhere — spins about the selection centre in 5° steps, hold Shift for free angle',
   split:         'Split: click a panel to insert a post — stays active for successive splits',
   measure:       'Measure: click the first point',
   dimension:     'Dimension: click the first post',
@@ -1083,7 +1073,7 @@ function switchTool(tool) {
   setActiveTool(tool);
   setToolboxActive(tool);
   const crosshairTools = ['zone', 'zone-circle', 'measure', 'bg-calibrate', 'dimension', 'panelDim', 'add-post', 'add-bollard', 'add-label', 'split', 'trace'];
-  canvas.style.cursor = tool === 'move' ? 'move' : (crosshairTools.includes(tool) ? 'crosshair' : '');
+  canvas.style.cursor = tool === 'move' ? 'move' : tool === 'rotate' ? 'grab' : (crosshairTools.includes(tool) ? 'crosshair' : '');
   if (wasMeasure && tool !== 'measure') {
     measureFrom = null; measureCursor = null; measureResult = null;
   }
@@ -1241,6 +1231,7 @@ document.addEventListener('keydown', e => {
     if (k === 'g' || k === 'G') { switchTool('move'); return; }
     if (k === 'm' || k === 'M') { if (selection.size) { openTypedMove(); return; } }
     if (k === 'q' || k === 'Q') { if (selection.size) { rotateSelectionBy(e.shiftKey ? 90 : -90); return; } }
+    if (k === 'o' || k === 'O') { switchTool('rotate'); return; }
     if (k === 's' || k === 'S') { switchTool('split'); return; }
     if (k === 'r' || k === 'R') switchTool('measure');
     if (k === 'z' || k === 'Z') switchTool('zone');

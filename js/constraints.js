@@ -426,6 +426,26 @@ export function lockedAxes(objectId, constraints, movingSet = null) {
 }
 
 /**
+ * Why a rigid rotation of the selection can't proceed, or null when it can.
+ * Rotation-invariant constraints (dimension/collinear/panelDim between rotating posts)
+ * pass; world-anchored ones (lock/tieEdge) and references outside the selection never
+ * survive. `alignsOk`: quarter-turn rotations keep alignH/alignV meaningful (the kinds
+ * swap on odd quarter-turns), so the 90°-step commands pass true; free rotation false.
+ */
+export function rotationBlockReason(sel, constraints, alignsOk = false) {
+  for (const c of constraints) {
+    if (!sel.has(c.child)) continue;
+    if (c.kind === 'lock' || c.kind === 'tieEdge')
+      return 'a post is locked / tied to a layout edge';
+    if (![c.parent, c.parent2].filter(Boolean).every(r => sel.has(r)))
+      return 'a constraint references a post outside the selection';
+    if ((c.kind === 'alignH' || c.kind === 'alignV') && !alignsOk)
+      return 'align constraints only survive 90° steps';
+  }
+  return null;
+}
+
+/**
  * True only when the object is fully defined and can't move in ANY direction (≥2 DOF removed,
  * or a lock). A post with a single constraint (1 DOF) still slides along its locus — the solver
  * re-projects the cursor onto the line/circle. `movingSet`: a constraint whose reference is also

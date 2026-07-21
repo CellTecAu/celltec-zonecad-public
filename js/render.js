@@ -330,6 +330,9 @@ export function render(canvas, ctx, doc, dpr = 1, selection = new Set(), marquee
   // 13.7. Measure overlay (model space — drawn before reset so it scales with view)
   if (measureOverlay) drawMeasureOverlay(ctx, measureOverlay, view.scale, dpr, settings.displayUnit);
 
+  // 13.8. Rotate-tool radial guide (model space)
+  if (overlay?.type === 'rotate') drawRotateOverlay(ctx, overlay, view.scale, dpr);
+
   // 13.9. Object snap indicator (model space — yellow geometry marker)
   if (snapIndicator) drawSnapIndicator(ctx, snapIndicator, view.scale);
 
@@ -2317,6 +2320,51 @@ function drawMeasureOverlay(ctx, mo, scale, dpr, unit) {
   if (mo.result) {
     drawMeasureLine(ctx, mo.result.x0, mo.result.y0, mo.result.x1, mo.result.y1, mo.result.label, scale, dpr, unit, false);
   }
+}
+
+/**
+ * Rotate-tool radial guide: pivot mark, dashed reference ray (where the drag started),
+ * solid ray to the cursor, sweep arc and a live angle label. deltaDeg is 0..360 CCW;
+ * the label shows the short way round (−90° instead of 270°).
+ */
+function drawRotateOverlay(ctx, ro, scale, dpr) {
+  const px = 1 / scale;
+  const r  = Math.max(Math.hypot(ro.toX - ro.cx, ro.toY - ro.cy), 30 * px);
+  const a0 = ro.startDeg * Math.PI / 180;
+  const a1 = (ro.startDeg + ro.deltaDeg) * Math.PI / 180;
+
+  ctx.fillStyle   = M_COL;
+  ctx.strokeStyle = M_COL;
+  ctx.lineWidth   = 1.5 * px;
+
+  // Pivot: dot + small circle
+  ctx.beginPath(); ctx.arc(ro.cx, ro.cy, 3 * px, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(ro.cx, ro.cy, 8 * px, 0, Math.PI * 2); ctx.stroke();
+
+  // Dashed reference ray (drag-start direction)
+  ctx.setLineDash([6 * px, 4 * px]);
+  ctx.beginPath();
+  ctx.moveTo(ro.cx, ro.cy);
+  ctx.lineTo(ro.cx + Math.cos(a0) * r, ro.cy + Math.sin(a0) * r);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Solid ray to the cursor
+  ctx.beginPath();
+  ctx.moveTo(ro.cx, ro.cy);
+  ctx.lineTo(ro.toX, ro.toY);
+  ctx.stroke();
+
+  // Sweep arc, CCW from the reference ray by deltaDeg (ctx is under the Y-up transform,
+  // so anticlockwise=false traces increasing angle)
+  const ar = Math.min(r * 0.45, 80 * px);
+  if (ro.deltaDeg > 0) {
+    ctx.beginPath(); ctx.arc(ro.cx, ro.cy, ar, a0, a1, false); ctx.stroke();
+  }
+
+  // Angle label at the cursor, short way round
+  const disp = ro.deltaDeg > 180 ? ro.deltaDeg - 360 : ro.deltaDeg;
+  cLabel(ctx, ro.toX + 20 * px, ro.toY + 20 * px, `${disp}°`, scale, dpr);
 }
 
 function drawMeasureLine(ctx, x0, y0, x1, y1, label, scale, dpr, unit, live) {
