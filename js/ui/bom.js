@@ -1,14 +1,16 @@
 // Bill of Materials — live parts worksheet with sortable columns + panel cut list
 
 import { spanRunLength, spanHeight, ghostPanelSections, ghostPostCenters, panelConfig, spanHinges, handrailCutList, HANDRAIL } from '../spans.js';
-import { fmtLen, BOLLARD } from '../model.js';
+import { fmtLen, BOLLARD, FOOTPLATE } from '../model.js';
+import { postCode, panelCode, PB_CODE, HARDWARE_DESC } from '../skus.js';
 
 // Per-table sort state, preserved across re-renders (the BOM re-renders on every store
 // change while open). Key = a column's data key; dir = 'asc' | 'desc'.
 const sortStates = {
-  posts:  { key: 'qty',   dir: 'desc' },
-  panels: { key: 'runMm', dir: 'desc' },
-  spans:  { key: 'runMm', dir: 'desc' },
+  posts:    { key: 'qty',   dir: 'desc' },
+  panels:   { key: 'runMm', dir: 'desc' },
+  spans:    { key: 'runMm', dir: 'desc' },
+  hardware: { key: 'qty',   dir: 'desc' },
 };
 
 // Human labels for span kinds (also used as the Panels "Type" column value).
@@ -89,8 +91,9 @@ export function setupBom(store) {
       const groups = groupBy(allPosts, p => p.kind === 'bollard' ? `bollard|${p.heightMm}` : `${p.material}|${p.heightMm}|${p.footplate}`);
       const rows = [...groups.values()].map(g => {
         const p = g[0];
-        const MAT_LABEL = { aluminium: 'aluminium 86×86', steel: 'steel 75×3 SHS', z65: 'Z65 65×2.0 SHS' };
+        const MAT_LABEL = { aluminium: 'aluminium 86×86', steel: 'steel 75×3 SHS', z65: 'Z65 65×2.5 SHS' };
         return {
+          code:     postCode(p) ?? '—',
           mat:      p.kind === 'bollard' ? 'bollard 165×3.2 CHS' : (MAT_LABEL[p.material] ?? p.material),
           heightMm: p.heightMm,
           plate:    p.kind === 'bollard' ? `${BOLLARD.plateOd} OD, ${BOLLARD.holes}×Ø${BOLLARD.holeDia} @ ${BOLLARD.pcd} PCD` : p.footplate,
@@ -98,14 +101,15 @@ export function setupBom(store) {
         };
       });
       const cols = [
+        { key: 'code',     label: 'Code',        render: r => r.code },
         { key: 'mat',      label: 'Material',    render: r => r.mat },
         { key: 'heightMm', label: 'Height',      numeric: true, render: r => fmt(r.heightMm) },
         { key: 'plate',    label: 'Footplate',   render: r => r.plate },
         { key: 'qty',      label: 'Qty', qty: true, numeric: true, render: r => r.qty },
       ];
       const { html, sorted } = renderSortable('posts', cols, rows);
-      csv.push('Posts'); csvRow('Material', 'Height (mm)', 'Footplate', 'Qty');
-      for (const r of sorted) csvRow(r.mat, Math.round(r.heightMm), r.plate, r.qty);
+      csv.push('Posts'); csvRow('Code', 'Material', 'Height (mm)', 'Footplate', 'Qty');
+      for (const r of sorted) csvRow(r.code, r.mat, Math.round(r.heightMm), r.plate, r.qty);
       csv.push('');
       parts.push(section('Posts', allPosts.length, html));
     }
@@ -119,21 +123,22 @@ export function setupBom(store) {
     for (const s of spans) {
       if (s.spanKind === 'panel') {
         for (const sec of ghostPanelSections(s, postMap, cfg))
-          panelEntries.push({ type: KIND_LABEL.panel, runMm: sec.runMm, heightMm: sec.heightMm, meshSide: sec.meshSide });
+          panelEntries.push({ kind: 'panel', type: KIND_LABEL.panel, runMm: sec.runMm, heightMm: sec.heightMm, meshSide: sec.meshSide });
       } else if (s.spanKind === 'hingedDoor' || s.spanKind === 'swingGate') {
-        panelEntries.push({ type: KIND_LABEL[s.spanKind], runMm: spanRunLength(s, postMap), heightMm: spanHeight(s, postMap), meshSide: s.meshSide });
+        panelEntries.push({ kind: s.spanKind, type: KIND_LABEL[s.spanKind], runMm: spanRunLength(s, postMap), heightMm: spanHeight(s, postMap), meshSide: s.meshSide });
       } else if (s.spanKind === 'slidingDoor') {
         // Leaf covers at minimum the post centres (c-c) of its span, plus any gate extension.
         const pA = postMap[s.postA], pB = postMap[s.postB];
         const c2c = (pA && pB) ? Math.hypot(pB.x - pA.x, pB.y - pA.y) : spanRunLength(s, postMap);
         const gateExtend = Math.max(0, s.kindProps?.gateExtendMm ?? 0);
-        panelEntries.push({ type: KIND_LABEL.slidingDoor, runMm: c2c + gateExtend, heightMm: spanHeight(s, postMap), meshSide: s.meshSide });
+        panelEntries.push({ kind: 'slidingDoor', type: KIND_LABEL.slidingDoor, runMm: c2c + gateExtend, heightMm: spanHeight(s, postMap), meshSide: s.meshSide });
       }
     }
     if (panelEntries.length) {
       const groups = groupBy(panelEntries, r => `${r.type}|${Math.round(r.runMm)}|${Math.round(r.heightMm)}|${r.meshSide}`);
-      const rows = [...groups.values()].map(g => ({ ...g[0], qty: g.length }));
+      const rows = [...groups.values()].map(g => ({ ...g[0], code: panelCode(g[0].kind, g[0].runMm, g[0].heightMm), qty: g.length }));
       const cols = [
+        { key: 'code',     label: 'Code',   render: r => r.code },
         { key: 'type',     label: 'Type',   render: r => r.type },
         { key: 'runMm',    label: 'Width',  numeric: true, render: r => fmt(r.runMm) },
         { key: 'heightMm', label: 'Height', numeric: true, render: r => fmt(r.heightMm) },
@@ -141,8 +146,8 @@ export function setupBom(store) {
         { key: 'qty',      label: 'Qty', qty: true, numeric: true, render: r => r.qty },
       ];
       const { html, sorted } = renderSortable('panels', cols, rows);
-      csv.push('Panels'); csvRow('Type', 'Width (mm)', 'Height (mm)', 'Mesh', 'Qty');
-      for (const r of sorted) csvRow(r.type, Math.round(r.runMm), Math.round(r.heightMm), r.meshSide, r.qty);
+      csv.push('Panels'); csvRow('Code', 'Type', 'Width (mm)', 'Height (mm)', 'Mesh', 'Qty');
+      for (const r of sorted) csvRow(r.code, r.type, Math.round(r.runMm), Math.round(r.heightMm), r.meshSide, r.qty);
       csv.push('');
       parts.push(section('Panels', panelEntries.length, html));
 
@@ -184,6 +189,52 @@ export function setupBom(store) {
           </table>
           ${ghostNote}
         </details>`);
+    }
+
+    // ── Hardware — install items derived from posts and spans ────────────────────
+    // Codes/rules per skus.js (zoneforge conventions, confirmed with Gareth 2026-07-21):
+    //   PB/Z65-PB/PBS  4 per physical panel bay, 2 per end, typed by that end's post
+    //                  material; interior (ghost) ends inherit post A, as everywhere else.
+    //   HDK            1 per hinged-door / swing-gate doorway.
+    //   TB1275         1 per footplate anchor hole (FOOTPLATE[..].holes), all non-bollard
+    //                  posts incl. ghosts. Bollard anchors are Ø18 — a separate line (TBC).
+    //   EC-PST/CSS825  alloy posts only: Z65's foot is welded + cap moulded, steel is a
+    //                  weldment.
+    {
+      const hardware = new Map(); // code → qty
+      const add = (code, qty) => { if (qty > 0) hardware.set(code, (hardware.get(code) ?? 0) + qty); };
+
+      for (const s of spans) {
+        if (s.spanKind === 'hingedDoor' || s.spanKind === 'swingGate') { add('HDK', 1); continue; }
+        if (s.spanKind !== 'panel') continue;
+        const pA = postMap[s.postA], pB = postMap[s.postB];
+        if (!pA || !pB) continue;
+        const bays = ghostPanelSections(s, postMap, cfg).length;
+        if (!bays) continue;
+        add(PB_CODE[pA.material] ?? 'PB', 2);              // pair on real post A
+        add(PB_CODE[pB.material] ?? 'PB', 2);              // pair on real post B
+        add(PB_CODE[pA.material] ?? 'PB', (bays - 1) * 4); // 2 pairs per ghost post
+      }
+
+      for (const p of allPosts) {
+        if (p.kind === 'bollard') { add('TBC', BOLLARD.holes); continue; }
+        add('TB1275', FOOTPLATE[p.footplate]?.holes ?? 0);
+        if (p.material === 'aluminium') { add('EC-PST', 1); add('CSS825', 4); }
+      }
+
+      if (hardware.size) {
+        const rows = [...hardware.entries()].map(([code, qty]) => ({ code, desc: HARDWARE_DESC[code] ?? '', qty }));
+        const cols = [
+          { key: 'code', label: 'Code',        render: r => r.code },
+          { key: 'desc', label: 'Description', render: r => r.desc },
+          { key: 'qty',  label: 'Qty', qty: true, numeric: true, render: r => r.qty },
+        ];
+        const { html, sorted } = renderSortable('hardware', cols, rows);
+        csv.push('Hardware'); csvRow('Code', 'Description', 'Qty');
+        for (const r of sorted) csvRow(r.code, r.desc, r.qty);
+        csv.push('');
+        parts.push(section('Hardware', rows.length, html));
+      }
     }
 
     // ── Spans (logical, collapsed) ────────────────────────────────────────────────
