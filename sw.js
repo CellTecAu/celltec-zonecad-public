@@ -8,7 +8,7 @@
 // Bump CACHE on breaking changes to force old caches out (also purged on
 // every activate of a new SW version).
 
-const CACHE = 'celltec-zonecad-public-v42';
+const CACHE = 'celltec-zonecad-public-v43';
 
 self.addEventListener('install', e => {
   // Pre-cache the shell so offline works even if the first session never

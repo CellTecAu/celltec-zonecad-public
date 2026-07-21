@@ -103,6 +103,8 @@ function buildMenu(obj) {
         addItem('collinear', 'Make Collinear');
       }
       addSep();
+      addRotateItems();
+      addSep();
       addItem('delete', 'Delete', true);
     }
     return;
@@ -128,6 +130,7 @@ function buildMenu(obj) {
     addSep();
     if (_onDuplicate) addItem('duplicate', 'Duplicate');
     addItem('array', 'Array / Repeat…');
+    addRotateItems();
     addItem('delete', 'Delete', true);
     return;
   }
@@ -161,9 +164,17 @@ function buildMenu(obj) {
   if (obj.type === 'zone' || obj.type === 'label' || obj.type === 'dim') {
     if (_onDuplicate) addItem('duplicate', 'Duplicate');
     addItem('array', 'Array / Repeat…');
+    addRotateItems();
     addSep();
     addItem('delete', 'Delete', true);
   }
+}
+
+/** Rotate entries — act on the whole selection about its centroid (main.js zc:rotate). */
+function addRotateItems() {
+  addItem('rotate-cw',   'Rotate 90° CW');
+  addItem('rotate-ccw',  'Rotate 90° CCW');
+  addItem('rotate-free', 'Rotate by Angle…');
 }
 
 function addItem(action, label, danger = false) {
@@ -254,6 +265,19 @@ function runAction(action) {
 
     case 'array':
       document.dispatchEvent(new CustomEvent('zc:array'));
+      break;
+
+    // Model space is Y-up, so CW on screen = negative (CCW-positive) delta.
+    case 'rotate-cw':
+      document.dispatchEvent(new CustomEvent('zc:rotate', { detail: { deltaDeg: -90 } }));
+      break;
+
+    case 'rotate-ccw':
+      document.dispatchEvent(new CustomEvent('zc:rotate', { detail: { deltaDeg: 90 } }));
+      break;
+
+    case 'rotate-free':
+      document.dispatchEvent(new CustomEvent('zc:rotatefree'));
       break;
 
     case 'panel-dim': {

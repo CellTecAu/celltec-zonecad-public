@@ -246,6 +246,100 @@ function nudgeSelection(dx, dy, fine) {
   });
 }
 
+/**
+ * Rotate the selection rigidly by deltaDeg (CCW positive, model space) about the
+ * centroid of the selected objects' anchors. Constraints that encode an absolute
+ * direction or anchor a selected post to the world (or to an unselected parent)
+ * can't survive a rigid rotation — those refuse up front with a toast instead of
+ * letting the re-solve snap posts back. Rotation-safe constraints are carried
+ * along: angle values get the delta added, and on odd quarter-turns alignH/alignV
+ * swap kinds.
+ */
+function rotateSelectionBy(deltaDeg) {
+  if (!selection.size) return;
+  const norm = v => ((v % 360) + 360) % 360;
+  const delta = norm(deltaDeg);
+  if (!delta) return;
+  const quarterTurn = delta % 90 === 0;
+  const oddQuarter  = quarterTurn && delta % 180 !== 0;
+  const halfTurn    = delta % 180 === 0;
+
+  const doc = store.getDoc();
+  for (const c of doc.constraints) {
+    if (!selection.has(c.child)) continue;
+    let why = null;
+    if (c.kind === 'lock' || c.kind === 'tieEdge') {
+      why = 'a post is locked / tied to a layout edge';
+    } else if (![c.parent, c.parent2].filter(Boolean).every(r => selection.has(r))) {
+      why = 'a constraint references a post outside the selection';
+    } else if ((c.kind === 'alignH' || c.kind === 'alignV') && !quarterTurn && !halfTurn) {
+      why = 'align constraints only survive 90° steps';
+    }
+    if (why) { showToast(`Rotation blocked — ${why}. Remove the constraint or change the selection.`, 'info'); return; }
+  }
+
+  const pts = doc.objects.filter(o => selection.has(o.id)).map(objAnchor).filter(Boolean);
+  if (!pts.length) return;
+  const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+  const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+
+  const rad = delta * Math.PI / 180;
+  // Exact quarter-turns snap cos/sin to 0/±1 so grid coordinates stay exact.
+  const cos = quarterTurn ? Math.round(Math.cos(rad)) : Math.cos(rad);
+  const sin = quarterTurn ? Math.round(Math.sin(rad)) : Math.sin(rad);
+  const rot = (x, y) => ({ x: cx + (x - cx) * cos - (y - cy) * sin,
+                           y: cy + (x - cx) * sin + (y - cy) * cos });
+
+  store.mutate(d => {
+    for (const c of d.constraints) {
+      if (!selection.has(c.child)) continue;
+      if (c.kind === 'angle') c.valueDeg = norm((c.valueDeg ?? 0) + delta);
+      if (oddQuarter && c.kind === 'alignH') c.kind = 'alignV';
+      else if (oddQuarter && c.kind === 'alignV') c.kind = 'alignH';
+    }
+    for (const o of d.objects) {
+      if (!selection.has(o.id) || o.type === 'span' || o.type === 'refdim') continue; // derived from posts
+      if (o.type === 'dim') {
+        const a = rot(o.x0, o.y0), b = rot(o.x1, o.y1);
+        o.x0 = a.x; o.y0 = a.y; o.x1 = b.x; o.y1 = b.y;
+        continue;
+      }
+      if (typeof o.x === 'number') { const p = rot(o.x, o.y); o.x = p.x; o.y = p.y; }
+      if (o.type === 'post') o.footplateRotationDeg = norm((o.footplateRotationDeg ?? 0) + delta);
+      // Rect zones have no rotation of their own: odd quarter-turns swap the sides;
+      // other angles just carry the centre (the rect stays axis-aligned).
+      if (o.type === 'zone' && o.shape !== 'circle' && oddQuarter) {
+        const w = o.widthMm; o.widthMm = o.heightMm; o.heightMm = w;
+      }
+    }
+  });
+}
+
+/** Inline angle typer to rotate the selection (positive = CCW). */
+function openTypedRotate() {
+  if (!selection.size) return;
+  const doc  = store.getDoc();
+  const pts  = doc.objects.filter(o => selection.has(o.id)).map(objAnchor).filter(Boolean);
+  if (!pts.length) return;
+  const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+  const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+  const lh = doc.layout.heightM * 1000;
+  const r  = canvas.getBoundingClientRect();
+  const sc = modelToCanvas(cx, cy, doc.view, lh);
+  showInlineInput({
+    x: r.left + sc.x, y: r.top + sc.y, placeholder: 'angle° (CCW+)', math: false,
+    onCommit: (_v, raw) => {
+      const deg = evalExpr(raw);
+      if (isNaN(deg)) return 'Invalid angle';
+      rotateSelectionBy(deg);
+      return null;
+    },
+  });
+}
+
+document.addEventListener('zc:rotate',     e => rotateSelectionBy(e.detail?.deltaDeg ?? 0));
+document.addEventListener('zc:rotatefree', () => openTypedRotate());
+
 // ─── Render loop ──────────────────────────────────────────────────────────────
 
 let rafId = null;
@@ -260,7 +354,7 @@ function scheduleRender() {
 // change guard so the DOM write only happens when the text actually changes.
 const statusHintEl = document.getElementById('status-hint');
 const TOOL_HINTS = {
-  select:        'Right-click to add post · Middle-drag / Space-drag to pan · V=Select G=Move R=Measure · F=Fit',
+  select:        'Right-click to add post · Middle-drag / Space-drag to pan · V=Select G=Move Q=Rotate R=Measure · F=Fit',
   move:          'Move: drag posts freely — object snapping off, align guides + 100 mm spacing snap on',
   split:         'Split: click a panel to insert a post — stays active for successive splits',
   measure:       'Measure: click the first point',
@@ -1146,6 +1240,7 @@ document.addEventListener('keydown', e => {
     if (k === 'b' || k === 'B') { switchTool('add-bollard'); return; }
     if (k === 'g' || k === 'G') { switchTool('move'); return; }
     if (k === 'm' || k === 'M') { if (selection.size) { openTypedMove(); return; } }
+    if (k === 'q' || k === 'Q') { if (selection.size) { rotateSelectionBy(e.shiftKey ? 90 : -90); return; } }
     if (k === 's' || k === 'S') { switchTool('split'); return; }
     if (k === 'r' || k === 'R') switchTool('measure');
     if (k === 'z' || k === 'Z') switchTool('zone');
@@ -1270,10 +1365,20 @@ function exportPng() {
   const panX    = (exportW - layoutW * scale) / 2;
   const panY    = (exportH - layoutH * scale) / 2;
 
+  // Text, dimensions and line weights are drawn at fixed *screen* px (12px etc.),
+  // which is unreadably small relative to a MAX_DIM-wide image of a large layout.
+  // The canvas transform is view.scale·dpr but screen-fixed glyph sizes derive from
+  // view.scale alone — so dividing view.scale/pan by TEXT_SCALE and rendering with
+  // dpr = TEXT_SCALE keeps the geometry pixel-identical while text and line weights
+  // come out TEXT_SCALE× larger.
+  const TEXT_SCALE = 3;
+
   const off = document.createElement('canvas');
   off.width  = exportW;
   off.height = exportH;
-  render(off, off.getContext('2d'), { ...doc, view: { scale, panX, panY } }, 1, new Set());
+  render(off, off.getContext('2d'),
+         { ...doc, view: { scale: scale / TEXT_SCALE, panX: panX / TEXT_SCALE, panY: panY / TEXT_SCALE } },
+         TEXT_SCALE, new Set());
 
   const url = off.toDataURL('image/png');
   const a   = Object.assign(document.createElement('a'), { href: url, download: sanitizeFilename(doc.layout.title || 'layout') + '.png' });
